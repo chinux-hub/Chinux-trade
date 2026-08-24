@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Chinux-Trade — Master Console</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B0D12">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0D12;
+    --panel:#12151D;
+    --panel-2:#171B26;
+    --line:#232838;
+    --ink:#EDEFF4;
+    --ink-dim:#8A90A6;
+    --gold:#D8B26A;
+    --gold-dim:#A98A4E;
+    --up:#3FBF7F;
+    --down:#E0596B;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:radial-gradient(1200px 800px at 80% -10%, #161A26 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family:'Space Grotesk', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono', monospace;}
+
+  /* ---------- LOGIN GATE ---------- */
+  #gate{
+    position:fixed; inset:0; z-index:50;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg);
+  }
+  .gate-card{
+    width:min(360px, 88vw);
+    padding:36px 28px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    text-align:center;
+  }
+  .mark{
+    width:52px; height:52px; margin:0 auto 18px;
+    border-radius:50%;
+    background:conic-gradient(from 220deg, var(--gold), #7A5F2E, var(--gold));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'JetBrains Mono'; font-weight:600; color:#0B0D12; font-size:18px;
+  }
+  .gate-card h1{font-size:20px; font-weight:500; letter-spacing:0.02em;}
+  .gate-card p{color:var(--ink-dim); font-size:13px; margin-top:6px; line-height:1.5;}
+  .bio-btn{
+    margin-top:26px; width:100%; padding:14px;
+    background:var(--gold); color:#14100A; border:none; border-radius:10px;
+    font-family:'Space Grotesk'; font-weight:700; font-size:14px; letter-spacing:0.01em;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .bio-btn:hover{transform:translateY(-1px); box-shadow:0 8px 24px -8px rgba(216,178,106,.5);}
+  .bio-btn:active{transform:translateY(0);}
+  .gate-fallback{margin-top:12px; font-size:12px; color:var(--ink-dim); cursor:pointer; text-decoration:underline; text-underline-offset:3px;}
+  .gate-status{margin-top:16px; font-size:12px; color:var(--gold-dim); min-height:16px;}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none;}
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 24px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; background:rgba(11,13,18,.85); backdrop-filter:blur(10px); z-index:10;
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.02em;}
+  .brand .dot{width:8px;height:8px;border-radius:50%; background:var(--gold);}
+  .net-pill{
+    font-size:11px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
+    color:var(--ink-dim); display:flex; align-items:center; gap:6px;
+  }
+  .net-pill .dot{width:6px;height:6px;border-radius:50%; background:var(--up);}
+  .net-pill.offline .dot{background:var(--down);}
+
+  main{max-width:920px; margin:0 auto; padding:20px 16px 80px;}
+
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media(max-width:600px){.grid{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px;
+  }
+  .card h3{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); font-weight:500; margin-bottom:10px;}
+
+  .ticker-row{display:flex; align-items:baseline; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line);}
+  .ticker-row:last-child{border-bottom:none;}
+  .ticker-sym{font-weight:600;}
+  .ticker-price{font-family:'JetBrains Mono'; font-size:15px;}
+  .up{color:var(--up);} .down{color:var(--down);}
+
+  .stat-big{font-family:'JetBrains Mono'; font-size:30px; font-weight:600; margin-top:2px;}
+  .stat-label{font-size:12px; color:var(--ink-dim);}
+
+  .signal{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);}
+  .signal:last-child{border-bottom:none;}
+  .signal-badge{font-size:10px; font-weight:700; padding:3px 8px; border-radius:6px;}
+  .signal-badge.buy{background:rgba(63,191,127,.15); color:var(--up);}
+  .signal-badge.sell{background:rgba(224,89,107,.15); color:var(--down);}
+  .signal-body{flex:1;}
+  .signal-title{font-size:13px; font-weight:600;}
+  .signal-sub{font-size:11px; color:var(--ink-dim);}
+
+  .slider-row{margin-top:14px;}
+  .slider-row label{font-size:13px; display:flex; justify-content:space-between; margin-bottom:6px;}
+  .slider-row .val{font-family:'JetBrains Mono'; color:var(--gold);}
+  input[type=range]{width:100%; accent-color:var(--gold);}
+
+  .paper-form{display:flex; gap:8px; margin-top:12px;}
+  .paper-form select, .paper-form input{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+    border-radius:8px; padding:10px; font-family:'JetBrains Mono'; font-size:13px; flex:1;
+  }
+  .btn{
+    padding:10px 16px; border-radius:8px; border:none; font-weight:700; font-size:13px; cursor:pointer;
+  }
+  .btn.buy{background:var(--up); color:#08150E;}
+  .btn.sell{background:var(--down); color:#1A0709;}
+
+  .log-row{font-size:12px; padding:6px 0; color:var(--ink-dim); border-bottom:1px dashed var(--line); font-family:'JetBrains Mono';}
+
+  .badge-mode{
+    font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--gold);
+    border:1px solid var(--gold-dim); border-radius:6px; padding:3px 8px; margin-left:8px;
+  }
+
+  footer{text-align:center; padding:24px; color:var(--ink-dim); font-size:11px;}
+</style>
+</head>
+<body>
+
+  <!-- ============= LOGIN / BIOMETRIC GATE ============= -->
+  <div id="gate">
+    <div class="gate-card">
+      <div class="mark">CX</div>
+      <h1>Chinux-Trade Master Console</h1>
+      <p>Single-admin access. Unlock with your device's biometrics — Face ID, fingerprint, or Windows Hello.</p>
+      <button class="bio-btn" id="bioBtn">◈ Unlock with Biometrics</button>
+      <div class="gate-fallback" id="fallbackLink">Use passkey / device PIN instead</div>
+      <div class="gate-status" id="gateStatus"></div>
+    </div>
+  </div>
+
+  <!-- ============= MAIN APP ============= -->
+  <div id="app">
+    <header>
+      <div class="brand"><span class="dot"></span> CHINUX-TRADE <span class="badge-mode">Practice Mode</span></div>
+      <div class="net-pill" id="netPill"><span class="dot"></span> <span id="netText">Online</span></div>
+    </header>
+
+    <main>
+      <div class="grid">
+        <div class="card">
+          <h3>Live Market</h3>
+          <div id="tickerList">
+            <div class="ticker-row"><span class="ticker-sym">BTC/USDT</span><span class="ticker-price mono">connecting…</span></div>
+            <div class="ticker-row"><span class="ticker-sym">ETH/USDT</span><span class="ticker-price mono">connecting…</span></div>
+            <div class="ticker-row"><span class="ticker-sym">SOL/USDT</span><span class="ticker-price mono">connecting…</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Practice Portfolio</h3>
+          <div class="stat-label">Simulated balance</div>
+          <div class="stat-big" id="balance">$10,000.00</div>
+          <div class="stat-label" style="margin-top:10px">Unrealized P/L</div>
+          <div class="stat-big" id="pnl" style="font-size:20px">$0.00</div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1">
+          <h3>Predicted Signals <span style="color:var(--ink-dim); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">— pattern model, illustrative</span></h3>
+          <div id="signalList"></div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1">
+          <h3>Practice Trade</h3>
+          <div class="paper-form">
+            <select id="tradeSym"><option>BTC/USDT</option><option>ETH/USDT</option><option>SOL/USDT</option></select>
+            <input type="number" id="tradeAmt" placeholder="Amount USD" value="100">
+            <button class="btn buy" id="buyBtn">Buy</button>
+            <button class="btn sell" id="sellBtn">Sell</button>
+          </div>
+          <div id="tradeLog" style="margin-top:14px"></div>
+        </div>
+
+        <div class="card" style="grid-column:1/-1">
+          <h3>Commission &amp; Payout Settings (Admin)</h3>
+          <div class="slider-row">
+            <label>Client commission on profit <span class="val" id="commVal">20%</span></label>
+            <input type="range" id="commSlider" min="0" max="100" value="20">
+          </div>
+          <div class="slider-row">
+            <label>Profit auto-liquidated to cash <span class="val" id="liqVal">30%</span></label>
+            <input type="range" id="liqSlider" min="0" max="100" value="30">
+          </div>
+          <p style="font-size:12px; color:var(--ink-dim); margin-top:12px; line-height:1.5;">
+            Automated bank remittance requires a licensed payment partner (e.g. a payments API tied to your bank).
+            This panel stores the percentages the sync engine and payout worker will apply once that's connected —
+            see the roadmap for setup.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer>Chinux-Trade Master Console · Practice Mode · Data: Binance public feed</footer>
+  </div>
+
+<script>
+/* ---------------- WebAuthn biometric gate ---------------- */
+const gate = document.getElementById('gate');
+const appEl = document.getElementById('app');
+const gateStatus = document.getElementById('gateStatus');
+
+async function enterApp(){
+  gate.style.display = 'none';
+  appEl.style.display = 'block';
+  startTickers();
+  renderSignals();
+}
+
+document.getElementById('fallbackLink').onclick = enterApp;
+
+document.getElementById('bioBtn').onclick = async () => {
+  if (!window.PublicKeyCredential) {
+    gateStatus.textContent = 'Biometrics not supported on this browser — use the fallback link.';
+    return;
+  }
+  try {
+    gateStatus.textContent = 'Requesting biometric check…';
+    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if (!available) {
+      gateStatus.textContent = 'No biometric authenticator found on this device.';
+      return;
+    }
+    // NOTE: a real deployment needs a backend to issue a challenge and
+    // verify + store the credential (WebAuthn registration/assertion).
+    // This demo triggers the native OS prompt to prove the flow, then
+    // proceeds — wire it to your auth server before going live.
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        userVerification: 'required',
+        timeout: 30000
+      }
+    }).catch(()=>{ throw new Error('no-cred'); });
+    enterApp();
+  } catch (e) {
+    gateStatus.textContent = 'No enrolled passkey yet on this device — use the fallback for this demo.';
+  }
+};
+
+/* ---------------- Network status ---------------- */
+function updateNet(){
+  const pill = document.getElementById('netPill');
+  const txt = document.getElementById('netText');
+  if (navigator.onLine) { pill.classList.remove('offline'); txt.textContent = 'Online'; }
+  else { pill.classList.add('offline'); txt.textContent = 'Offline — showing cached patterns'; }
+}
+window.addEventListener('online', updateNet);
+window.addEventListener('offline', updateNet);
+updateNet();
+
+/* ---------------- Live ticker (Binance public stream) ---------------- */
+const symbols = ['btcusdt','ethusdt','solusdt'];
+const labels = {btcusdt:'BTC/USDT', ethusdt:'ETH/USDT', solusdt:'SOL/USDT'};
+let lastPrices = {};
+
+function startTickers(){
+  try{
+    const ws = new WebSocket('wss://stream.bybit.com/v5/public/spot');
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ op: 'subscribe', args: symbols.map(s => 'tickers.' + s.toUpperCase()) }));
+    };
+    ws.onmessage = (ev) => {
+      const msg = JSON.parse(ev.data);
+      if (!msg.topic || !msg.data) return;
+      const d = msg.data;
+      const sym = d.symbol.toLowerCase();
+      const price = parseFloat(d.lastPrice);
+      const change = parseFloat(d.price24hPcnt) * 100;
+      if (isNaN(price)) return;
+      lastPrices[sym] = price;
+      renderTicker(sym, price, change);
+    };
+    ws.onerror = () => { document.getElementById('tickerList').innerHTML = '<div class="ticker-row">Live feed unavailable in this preview — will connect once deployed with network access.</div>'; };
+  }catch(e){
+    document.getElementById('tickerList').innerHTML = '<div class="ticker-row">Live feed unavailable in this preview.</div>';
+  }
+}
+
+function renderTicker(sym, price, change){
+  let row = document.getElementById('row-'+sym);
+  if(!row){
+    row = document.createElement('div');
+    row.className = 'ticker-row';
+    row.id = 'row-'+sym;
+    row.innerHTML = `<span class="ticker-sym">${labels[sym]}</span><span class="ticker-price mono"></span>`;
+    document.getElementById('tickerList').appendChild(row);
+  }
+  const priceEl = row.querySelector('.ticker-price');
+  priceEl.textContent = '$' + price.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+  priceEl.className = 'ticker-price mono ' + (change >= 0 ? 'up' : 'down');
+}
+
+/* ---------------- Illustrative pattern signals ---------------- */
+function renderSignals(){
+  const signals = [
+    {sym:'BTC/USDT', dir:'buy', title:'Bullish divergence forming', sub:'RSI(14) diverging from price on 4h — pattern-based, not financial advice'},
+    {sym:'ETH/USDT', dir:'sell', title:'Resistance rejection', sub:'Price stalling at prior swing high on 1h'},
+    {sym:'SOL/USDT', dir:'buy', title:'Volume breakout', sub:'Above-average volume on upward candle, 15m'},
+  ];
+  const list = document.getElementById('signalList');
+  list.innerHTML = signals.map(s => `
+    <div class="signal">
+      <span class="signal-badge ${s.dir}">${s.dir.toUpperCase()}</span>
+      <div class="signal-body">
+        <div class="signal-title">${s.sym} — ${s.title}</div>
+        <div class="signal-sub">${s.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+/* ---------------- Practice trading (paper) ---------------- */
+let balance = 10000;
+let position = null;
+
+function log(msg){
+  const el = document.getElementById('tradeLog');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+  el.prepend(row);
+}
+
+document.getElementById('buyBtn').onclick = () => {
+  const sym = document.getElementById('tradeSym').value.replace('/','').toLowerCase();
+  const amt = parseFloat(document.getElementById('tradeAmt').value) || 0;
+  if (amt > balance) { log('Insufficient practice balance.'); return; }
+  const price = lastPrices[sym];
+  balance -= amt;
+  document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
+  log(`BUY ${document.getElementById('tradeSym').value} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
+};
+document.getElementById('sellBtn').onclick = () => {
+  const sym = document.getElementById('tradeSym').value.replace('/','').toLowerCase();
+  const amt = parseFloat(document.getElementById('tradeAmt').value) || 0;
+  const price = lastPrices[sym];
+  balance += amt;
+  document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
+  log(`SELL ${document.getElementById('tradeSym').value} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
+};
+
+/* ---------------- Commission / payout sliders ---------------- */
+document.getElementById('commSlider').oninput = (e) => {
+  document.getElementById('commVal').textContent = e.target.value + '%';
+};
+document.getElementById('liqSlider').oninput = (e) => {
+  document.getElementById('liqVal').textContent = e.target.value + '%';
+};
+</script>
+</body>
+</html>
