@@ -24,7 +24,10 @@ if (!BYBIT_API_KEY || !BYBIT_API_SECRET || !ADMIN_TOKEN) {
 
 const RECV_WINDOW = '5000';
 
-// ---- Auth: only requests carrying your admin token get through ----
+// ---- Public health check (no token needed — visit this in any browser) ----
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// ---- Auth: everything below this line requires your admin token ----
 app.use((req, res, next) => {
   if (req.get('x-admin-token') !== ADMIN_TOKEN) {
     return res.status(401).json({ error: 'unauthorized' });
@@ -149,7 +152,5 @@ app.post('/api/withdraw', async (req, res) => {
     res.status(400).json({ error: e.response?.data || e.message });
   }
 });
-
-app.get('/health', (req, res) => res.json({ ok: true, base: BYBIT_BASE_URL }));
 
 app.listen(PORT, () => console.log(`Chinux-Trade backend (Bybit) running on :${PORT}`));
