@@ -24,6 +24,15 @@ if (!BYBIT_API_KEY || !BYBIT_API_SECRET || !ADMIN_TOKEN) {
 
 const RECV_WINDOW = '5000';
 
+// ---- CORS: allow the browser app (hosted elsewhere) to call this API ----
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, x-admin-token');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
+
 // ---- Public health check (no token needed — visit this in any browser) ----
 app.get('/health', (req, res) => res.json({ ok: true }));
 
