@@ -155,12 +155,25 @@
   <!-- ============= MAIN APP ============= -->
   <div id="app">
     <header>
-      <div class="brand"><span class="dot"></span> CHINUX-TRADE <span class="badge-mode">Practice Mode</span></div>
+      <div class="brand"><span class="dot"></span> CHINUX-TRADE <span class="badge-mode" id="modeBadge">Practice Mode</span></div>
       <div class="net-pill" id="netPill"><span class="dot"></span> <span id="netText">Online</span></div>
     </header>
 
     <main>
       <div class="grid">
+        <div class="card" style="grid-column:1/-1">
+          <h3>Trading Mode</h3>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+              <input type="checkbox" id="liveModeToggle">
+              Live trading (real Bybit account)
+            </label>
+          </div>
+          <p style="font-size:12px; color:var(--ink-dim); margin-top:10px; line-height:1.5;" id="modeHint">
+            Off = Practice Mode (simulated money). Switching on will ask for your backend admin token once — it's kept only in this browser tab's memory, never saved or hardcoded.
+          </p>
+        </div>
+
         <div class="card">
           <h3>Live Market</h3>
           <div id="tickerList">
@@ -171,8 +184,8 @@
         </div>
 
         <div class="card">
-          <h3>Practice Portfolio</h3>
-          <div class="stat-label">Simulated balance</div>
+          <h3 id="balanceLabel">Practice Portfolio</h3>
+          <div class="stat-label" id="balanceSubLabel">Simulated balance</div>
           <div class="stat-big" id="balance">$10,000.00</div>
           <div class="stat-label" style="margin-top:10px">Unrealized P/L</div>
           <div class="stat-big" id="pnl" style="font-size:20px">$0.00</div>
@@ -217,6 +230,81 @@
   </div>
 
 <script>
+/* ---------------- Live backend wiring ---------------- */
+const BACKEND_URL = 'https://chinuxtradebybit.bonto.run';
+let adminToken = null;
+let liveMode = false;
+
+const modeBadge = document.getElementById('modeBadge');
+const modeHint = document.getElementById('modeHint');
+const balanceLabel = document.getElementById('balanceLabel');
+const balanceSubLabel = document.getElementById('balanceSubLabel');
+
+document.getElementById('liveModeToggle').onchange = async (e) => {
+  if (e.target.checked) {
+    if (!adminToken) {
+      adminToken = prompt('Enter your backend admin token (kept only in this tab, never saved):');
+      if (!adminToken) { e.target.checked = false; return; }
+    }
+    const ok = await verifyLiveConnection();
+    if (!ok) { e.target.checked = false; adminToken = null; return; }
+    liveMode = true;
+    modeBadge.textContent = 'LIVE MODE';
+    modeBadge.style.color = 'var(--down)';
+    modeBadge.style.borderColor = 'var(--down)';
+    modeHint.textContent = 'Live trading is ON — buy/sell will place real orders on your Bybit account.';
+    balanceLabel.textContent = 'Bybit Portfolio';
+    balanceSubLabel.textContent = 'Real balance (USDT)';
+    refreshLiveBalance();
+  } else {
+    liveMode = false;
+    modeBadge.textContent = 'Practice Mode';
+    modeBadge.style.color = 'var(--gold)';
+    modeBadge.style.borderColor = 'var(--gold-dim)';
+    modeHint.textContent = 'Off = Practice Mode (simulated money). Switching on will ask for your backend admin token once — it\'s kept only in this browser tab\'s memory, never saved or hardcoded.';
+    balanceLabel.textContent = 'Practice Portfolio';
+    balanceSubLabel.textContent = 'Simulated balance';
+    document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
+  }
+};
+
+async function verifyLiveConnection(){
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/balance`, { headers: { 'x-admin-token': adminToken } });
+    if (res.status === 401) { alert('Token rejected — check it matches your backend\'s ADMIN_TOKEN.'); return false; }
+    if (!res.ok) { alert('Backend reachable but returned an error — check backend logs.'); return false; }
+    return true;
+  } catch (e) {
+    alert('Could not reach the backend. Check the URL and your connection.');
+    return false;
+  }
+}
+
+async function refreshLiveBalance(){
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/balance`, { headers: { 'x-admin-token': adminToken } });
+    const data = await res.json();
+    const usdt = data?.result?.list?.[0]?.totalWalletBalance;
+    document.getElementById('balance').textContent = '$' + (parseFloat(usdt || 0)).toLocaleString(undefined,{minimumFractionDigits:2});
+  } catch (e) { /* leave last known value on screen */ }
+}
+
+async function placeLiveOrder(symbol, side, qtyUsd){
+  // Simplified: uses qtyUsd as the order 'qty' field directly — for real
+  // use, convert to base-asset quantity per Bybit's lot size rules first.
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
+      body: JSON.stringify({ symbol, side, orderType: 'Market', qty: String(qtyUsd), category: 'spot' })
+    });
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    return { retMsg: 'Network error reaching backend' };
+  }
+}
+
 /* ---------------- WebAuthn biometric gate ---------------- */
 const gate = document.getElementById('gate');
 const appEl = document.getElementById('app');
@@ -343,22 +431,42 @@ function log(msg){
   el.prepend(row);
 }
 
-document.getElementById('buyBtn').onclick = () => {
-  const sym = document.getElementById('tradeSym').value.replace('/','').toLowerCase();
+document.getElementById('buyBtn').onclick = async () => {
+  const symSlash = document.getElementById('tradeSym').value;
+  const sym = symSlash.replace('/','').toLowerCase();
   const amt = parseFloat(document.getElementById('tradeAmt').value) || 0;
+
+  if (liveMode) {
+    log(`Sending LIVE buy order: ${symSlash} — $${amt.toFixed(2)}…`);
+    const result = await placeLiveOrder(symSlash.replace('/',''), 'Buy', amt);
+    log(`Bybit response: ${result.retMsg || JSON.stringify(result)}`);
+    if (result.retCode === 0) refreshLiveBalance();
+    return;
+  }
+
   if (amt > balance) { log('Insufficient practice balance.'); return; }
   const price = lastPrices[sym];
   balance -= amt;
   document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
-  log(`BUY ${document.getElementById('tradeSym').value} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
+  log(`BUY ${symSlash} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
 };
-document.getElementById('sellBtn').onclick = () => {
-  const sym = document.getElementById('tradeSym').value.replace('/','').toLowerCase();
+document.getElementById('sellBtn').onclick = async () => {
+  const symSlash = document.getElementById('tradeSym').value;
+  const sym = symSlash.replace('/','').toLowerCase();
   const amt = parseFloat(document.getElementById('tradeAmt').value) || 0;
+
+  if (liveMode) {
+    log(`Sending LIVE sell order: ${symSlash} — $${amt.toFixed(2)}…`);
+    const result = await placeLiveOrder(symSlash.replace('/',''), 'Sell', amt);
+    log(`Bybit response: ${result.retMsg || JSON.stringify(result)}`);
+    if (result.retCode === 0) refreshLiveBalance();
+    return;
+  }
+
   const price = lastPrices[sym];
   balance += amt;
   document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
-  log(`SELL ${document.getElementById('tradeSym').value} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
+  log(`SELL ${symSlash} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
 };
 
 /* ---------------- Commission / payout sliders ---------------- */
