@@ -21,20 +21,31 @@
 | Brute-force anomaly detection | Not started | Needs the backend below to add rate-limiting — Stage 4 |
 | Multi-device single account | Not started | Needs a database (accounts currently only exist in-browser) |
 
-## Real trading backend (server.js) — Bybit edition, deploy this to place real orders
-`server.js` signs and forwards requests to Bybit (v5 API) so your secret key never touches the browser. Live price data in `index.html` also now streams from Bybit's public feed. The backend is NOT connected to `index.html` yet — that wiring is the next step once you've deployed and tested this.
+## Deposits and withdrawals — what's real vs. not
+- **Crypto deposit address** (`GET /api/deposit-address?coin=USDT&chain=TRX`) — retrieves your Bybit deposit address so you can send crypto in from an external wallet without opening the Bybit app. This is built and works via the API.
+- **Crypto withdrawal** (`POST /api/withdraw`) — sends crypto out to a whitelisted wallet address. Built, but requires withdrawal permission + address whitelisting in Bybit's security settings first.
+- **Fiat (cash) deposit from your bank into Bybit** — NOT achievable through the trading API. Bybit handles this through its own P2P marketplace or card/payment-gateway flow, which involves a counter-party or payment processor and isn't a simple scriptable call. This still has to go through the Bybit app or website.
+- **Fiat (cash) withdrawal from Bybit to your bank** — same limitation. This needs a licensed payment/off-ramp provider integration, which is a separate project (see the "Automated bank remittance" row above) — not something the exchange API alone provides.
 
-**Deploy it:**
-1. Push `server.js`, `package.json` to a free host that runs persistent Node servers — Render.com or Railway.app both work well for this.
-2. In that host's dashboard, set environment variables: `BYBIT_API_KEY`, `BYBIT_API_SECRET`, `BYBIT_BASE_URL`, `ADMIN_TOKEN` (see `.env.example` — generate the admin token with the command shown there, don't make one up by hand).
-3. Get your Bybit **testnet** key first (testnet.bybit.com) — practice with fake funds before anything real. Only grant trading permission — leave withdrawal permission off until you've tested thoroughly.
-4. Once deployed, `GET https://your-backend-url/health` should return `{ ok: true }`.
-5. Test balance/order endpoints with a tool like Postman, sending header `x-admin-token: <your token>`, before wiring the frontend to it.
+So today: trading, balance checks, and crypto in/out can all be abstracted away from the Bybit app through this backend. Moving between Naira in your bank account and your Bybit balance still requires the Bybit app/website itself, or a dedicated fiat off-ramp integration we haven't built yet.
+
+## Real trading backend — two exchanges, two separate deployments
+There are now two backend files: `server-binance.js` and `server-bybit.js`. They're independent — deploy each as its own Render Web Service, since they need different code and different environment variables.
+
+**Service A — Binance testnet (easiest to access, use this to prove the app works):**
+- Start Command: `node server-binance.js`
+- Env vars: `BINANCE_API_KEY`, `BINANCE_API_SECRET` (from testnet.binance.vision, log in with GitHub), `BINANCE_BASE_URL=https://testnet.binance.vision`, `ADMIN_TOKEN`
+
+**Service B — Bybit mainnet (your real account):**
+- Start Command: `node server-bybit.js`
+- Env vars: `BYBIT_API_KEY`, `BYBIT_API_SECRET` (from your main Bybit account's API Management), `BYBIT_BASE_URL=https://api.bybit.com`, `ADMIN_TOKEN` (use a different random string than Service A)
+
+Both services can live in the same GitHub repo — Render just needs a different Start Command per service, pointing at the matching file. Test Service A thoroughly first since it's zero-risk; only rely on Service B once you trust the order logic.
 
 **Never do this:**
-- Never put `BYBIT_API_SECRET` in `index.html` or any file that reaches the browser.
-- Never enable withdrawal permission on a key without an address whitelist set in Bybit's security settings.
-- Never share `server.js` publicly with real `.env` values filled in.
+- Never put a real API secret in `index.html` or any file the browser loads.
+- Never enable withdrawal permission on the Bybit mainnet key without an address whitelist set in Bybit's security settings.
+- Never share either server file publicly with real `.env` values filled in.
 
 ## How to actually launch and use what's built today
 1. **Get a free static host** — Netlify, Vercel, or GitHub Pages all work and are free.
