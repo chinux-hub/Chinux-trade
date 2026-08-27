@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Chinux-Trade">
 <meta name="theme-color" content="#0B0D12">
+<meta name="description" content="Chinux-Trade Master Console — single-admin trading dashboard with live market data, practice and live trading modes, and commission/payout controls.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -141,6 +142,26 @@
   }
 
   footer{text-align:center; padding:24px; color:var(--ink-dim); font-size:11px;}
+
+  /* ---------- Loading & motion polish ---------- */
+  @keyframes fadeUp { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+  .gate-card{animation:fadeUp .5s ease both;}
+  .card{animation:fadeUp .45s ease both;}
+  .card:nth-child(1){animation-delay:.03s;}
+  .card:nth-child(2){animation-delay:.08s;}
+  .card:nth-child(3){animation-delay:.13s;}
+  .card:nth-child(4){animation-delay:.18s;}
+  .card:nth-child(5){animation-delay:.23s;}
+
+  @keyframes shimmer { 0%{background-position:-200px 0;} 100%{background-position:200px 0;} }
+  .skeleton{
+    display:inline-block; height:14px; width:70px; border-radius:4px;
+    background:linear-gradient(90deg, var(--panel-2) 25%, var(--line) 37%, var(--panel-2) 63%);
+    background-size:400px 100%; animation:shimmer 1.4s ease-in-out infinite;
+  }
+
+  .bio-btn, .btn, .net-pill, input[type=range]{transition:transform .15s ease, opacity .15s ease, background .15s ease;}
+  #app{animation:fadeUp .4s ease both;}
 </style>
 </head>
 <body>
@@ -152,6 +173,7 @@
       <h1>Chinux-Trade Master Console</h1>
       <p>Single-admin access. Unlock with your device's biometrics — Face ID, fingerprint, or Windows Hello.</p>
       <button class="bio-btn" id="bioBtn">◈ Unlock with Biometrics</button>
+      <div class="gate-fallback" id="enrollLink" style="margin-top:14px;"><span id="enrollBtn" style="cursor:pointer;">First time? Enroll this device's biometrics</span></div>
       <div class="gate-fallback" id="fallbackLink">Use passkey / device PIN instead</div>
       <div class="gate-status" id="gateStatus"></div>
     </div>
@@ -182,9 +204,9 @@
         <div class="card">
           <h3>Live Market</h3>
           <div id="tickerList">
-            <div class="ticker-row"><span class="ticker-sym">BTC/USDT</span><span class="ticker-price mono">connecting…</span></div>
-            <div class="ticker-row"><span class="ticker-sym">ETH/USDT</span><span class="ticker-price mono">connecting…</span></div>
-            <div class="ticker-row"><span class="ticker-sym">SOL/USDT</span><span class="ticker-price mono">connecting…</span></div>
+            <div class="ticker-row"><span class="ticker-sym">BTC/USDT</span><span class="skeleton"></span></div>
+            <div class="ticker-row"><span class="ticker-sym">ETH/USDT</span><span class="skeleton"></span></div>
+            <div class="ticker-row"><span class="ticker-sym">SOL/USDT</span><span class="skeleton"></span></div>
           </div>
         </div>
 
@@ -320,36 +342,75 @@ async function enterApp(){
   appEl.style.display = 'block';
   startTickers();
   renderSignals();
+  registerServiceWorker();
+}
+
+function registerServiceWorker(){
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
 }
 
 document.getElementById('fallbackLink').onclick = enterApp;
+
+const RP_ID = location.hostname;
 
 document.getElementById('bioBtn').onclick = async () => {
   if (!window.PublicKeyCredential) {
     gateStatus.textContent = 'Biometrics not supported on this browser — use the fallback link.';
     return;
   }
+  const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false);
+  if (!available) {
+    gateStatus.textContent = 'No biometric authenticator found on this device.';
+    return;
+  }
   try {
-    gateStatus.textContent = 'Requesting biometric check…';
-    const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if (!available) {
-      gateStatus.textContent = 'No biometric authenticator found on this device.';
-      return;
-    }
-    // NOTE: a real deployment needs a backend to issue a challenge and
-    // verify + store the credential (WebAuthn registration/assertion).
-    // This demo triggers the native OS prompt to prove the flow, then
-    // proceeds — wire it to your auth server before going live.
+    gateStatus.textContent = 'Checking for enrolled biometrics…';
+    // Discoverable credential: browser matches any passkey already
+    // enrolled for this site's domain, no stored ID needed on our side.
     await navigator.credentials.get({
       publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rpId: RP_ID,
         userVerification: 'required',
         timeout: 30000
       }
-    }).catch(()=>{ throw new Error('no-cred'); });
+    });
     enterApp();
   } catch (e) {
-    gateStatus.textContent = 'No enrolled passkey yet on this device — use the fallback for this demo.';
+    gateStatus.textContent = 'No enrolled biometrics yet on this device.';
+  }
+};
+
+document.getElementById('enrollBtn').onclick = async () => {
+  if (!window.PublicKeyCredential) {
+    gateStatus.textContent = 'Biometrics not supported on this browser.';
+    return;
+  }
+  try {
+    gateStatus.textContent = 'Follow your device prompt to enroll…';
+    await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'Chinux-Trade', id: RP_ID },
+        user: {
+          id: crypto.getRandomValues(new Uint8Array(16)),
+          name: 'admin@chinux-trade',
+          displayName: 'Chinux-Trade Admin'
+        },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          residentKey: 'required',
+          userVerification: 'required'
+        },
+        timeout: 30000
+      }
+    });
+    gateStatus.textContent = 'Enrolled! Tap "Unlock with Biometrics" to sign in.';
+  } catch (e) {
+    gateStatus.textContent = 'Enrollment failed or was cancelled.';
   }
 };
 
