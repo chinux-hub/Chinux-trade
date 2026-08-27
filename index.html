@@ -346,9 +346,33 @@ async function enterApp(){
 }
 
 function registerServiceWorker(){
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    // Check for a newer sw.js every time the app opens
+    reg.update();
+
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdateBanner(newWorker);
+        }
+      });
+    });
+  }).catch(() => {});
+}
+
+function showUpdateBanner(newWorker){
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--gold);color:#14100A;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;z-index:100;';
+  banner.innerHTML = `<span>A new version is available.</span><button style="background:#14100A;color:var(--gold);border:none;padding:8px 14px;border-radius:8px;font-weight:700;cursor:pointer;">Update now</button>`;
+  banner.querySelector('button').onclick = () => {
+    newWorker.postMessage('SKIP_WAITING');
+    newWorker.addEventListener('statechange', () => {
+      if (newWorker.state === 'activated') window.location.reload();
+    });
+  };
+  document.body.appendChild(banner);
 }
 
 document.getElementById('fallbackLink').onclick = enterApp;

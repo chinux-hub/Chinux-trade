@@ -1,9 +1,10 @@
-const CACHE = 'chinux-trade-v2';
+const CACHE = 'chinux-trade-v3';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)));
-  self.skipWaiting();
+  // Don't auto-activate — wait for the page to say it's ready, so an
+  // update doesn't swap under the user mid-session (see SKIP_WAITING below).
 });
 
 self.addEventListener('activate', (e) => {
@@ -15,10 +16,10 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Navigation requests (opening/reloading the app): try network first,
-// fall back to the cached app shell when offline.
-// Everything else (live price data, API calls): network only, so data
-// is never stale — those already have their own offline handling in-app.
+self.addEventListener('message', (e) => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (e) => {
   if (e.request.mode === 'navigate') {
     e.respondWith(
