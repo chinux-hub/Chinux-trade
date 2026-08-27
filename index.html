@@ -133,7 +133,9 @@
   .bottom-nav{
     position:fixed; bottom:0; left:0; right:0; z-index:20; background:rgba(18,21,29,.95); backdrop-filter:blur(10px);
     border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom);
+    transition:transform .25s ease;
   }
+  .bottom-nav.nav-hidden{ transform:translateY(110%); }
   .bottom-nav .tab-btn{
     flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 4px 8px;
     margin-right:0; border-bottom:none; border-top:2px solid transparent;
@@ -141,6 +143,22 @@
   .bottom-nav .tab-btn.active{border-top-color:var(--gold); border-bottom:none;}
   .bottom-nav .tab-icon{font-size:17px;}
   main{padding-bottom:88px;}
+
+  /* Wider screens (desktop/Windows): revert to a normal top bar, no hide-on-scroll */
+  @media (min-width:769px){
+    .bottom-nav{
+      position:static; transform:none !important; padding-top:14px; padding-bottom:0;
+      border-top:none; background:none; backdrop-filter:none; padding-left:24px;
+      justify-content:flex-start;
+    }
+    .bottom-nav .tab-btn{
+      flex:none; flex-direction:row; gap:0; padding:10px 4px; margin-right:22px;
+      border-top:none; border-bottom:2px solid transparent;
+    }
+    .bottom-nav .tab-btn.active{border-top:none; border-bottom-color:var(--gold);}
+    .bottom-nav .tab-icon{display:none;}
+    main{padding-bottom:24px;}
+  }
   .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.02em;}
   .brand .dot{width:8px;height:8px;border-radius:50%; background:var(--gold);}
   .net-pill{
@@ -430,6 +448,19 @@ function confirmTrade(title, body){
     document.getElementById('confirmCancelBtn').onclick = () => cleanup(false);
   });
 }
+
+/* ---------------- Bottom nav: hide on scroll down, show on scroll up ---------------- */
+(function(){
+  const nav = document.querySelector('.bottom-nav');
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    if (window.matchMedia('(min-width:769px)').matches) return; // desktop keeps top bar, no hiding
+    const y = window.scrollY;
+    if (y > lastY && y > 60) nav.classList.add('nav-hidden');
+    else nav.classList.remove('nav-hidden');
+    lastY = y;
+  }, { passive: true });
+})();
 
 /* ---------------- Tab switching ---------------- */
 document.querySelectorAll('.tab-btn').forEach(btn => {
