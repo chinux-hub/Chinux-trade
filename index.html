@@ -711,6 +711,17 @@ async function enterApp(){
   renderSignals();
   registerServiceWorker();
   loadSettings();
+  // Mark this reload-cycle as unlocked (survives F5/refresh, clears on a
+  // fresh app open) so a page reload doesn't dump you back to the gate.
+  if (!location.hash.includes('unlocked')) {
+    history.replaceState(null, '', location.pathname + location.search + '#unlocked');
+  }
+}
+
+// On page load, skip the gate entirely if we're mid-session (a reload,
+// not a fresh open) — still re-fetches everything fresh via enterApp().
+if (location.hash.includes('unlocked')) {
+  enterApp();
 }
 
 function registerServiceWorker(){
