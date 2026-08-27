@@ -121,8 +121,9 @@
   }
   .card h3{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); font-weight:500; margin-bottom:10px;}
 
-  .ticker-row{display:flex; align-items:baseline; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line);}
+  .ticker-row{display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--line); gap:10px;}
   .ticker-row:last-child{border-bottom:none;}
+  .legend-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; vertical-align:middle;}
   .ticker-sym{font-weight:600;}
   .ticker-price{font-family:'JetBrains Mono'; font-size:15px;}
   .up{color:var(--up);} .down{color:var(--down);}
@@ -227,10 +228,11 @@
 
         <div class="card">
           <h3>Live Market</h3>
-          <div id="tickerList">
-            <div class="ticker-row"><span class="ticker-sym">BTC/USDT</span><span class="skeleton"></span></div>
-            <div class="ticker-row"><span class="ticker-sym">ETH/USDT</span><span class="skeleton"></span></div>
-            <div class="ticker-row"><span class="ticker-sym">SOL/USDT</span><span class="skeleton"></span></div>
+          <canvas id="combinedChart" width="600" height="200" style="width:100%; height:180px;"></canvas>
+          <div id="tickerList" style="margin-top:10px;">
+            <div class="ticker-row"><span class="ticker-sym"><span class="legend-dot" style="background:#D8B26A"></span>BTC/USDT</span><span class="skeleton"></span></div>
+            <div class="ticker-row"><span class="ticker-sym"><span class="legend-dot" style="background:#7FD9E0"></span>ETH/USDT</span><span class="skeleton"></span></div>
+            <div class="ticker-row"><span class="ticker-sym"><span class="legend-dot" style="background:#B98CE0"></span>SOL/USDT</span><span class="skeleton"></span></div>
           </div>
         </div>
 
@@ -638,18 +640,55 @@ function startTickers(){
   }
 }
 
+const priceHistory = {}; // sym -> array of recent prices, for the combined chart
+const seriesColors = { btcusdt:'#D8B26A', ethusdt:'#7FD9E0', solusdt:'#B98CE0' };
+
 function renderTicker(sym, price, change){
   let row = document.getElementById('row-'+sym);
   if(!row){
     row = document.createElement('div');
     row.className = 'ticker-row';
     row.id = 'row-'+sym;
-    row.innerHTML = `<span class="ticker-sym">${labels[sym]}</span><span class="ticker-price mono"></span>`;
+    row.innerHTML = `<span class="ticker-sym"><span class="legend-dot" style="background:${seriesColors[sym]}"></span>${labels[sym]}</span><span class="ticker-price mono"></span>`;
     document.getElementById('tickerList').appendChild(row);
   }
   const priceEl = row.querySelector('.ticker-price');
-  priceEl.textContent = '$' + price.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
-  priceEl.className = 'ticker-price mono ' + (change >= 0 ? 'up' : 'down');
+  const pctChange = priceHistory[sym] && priceHistory[sym].length > 1
+    ? ((price - priceHistory[sym][0]) / priceHistory[sym][0] * 100)
+    : change;
+  priceEl.innerHTML = `$${price.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px">(${pctChange>=0?'+':''}${pctChange.toFixed(2)}%)</span>`;
+  priceEl.className = 'ticker-price mono ' + (pctChange >= 0 ? 'up' : 'down');
+
+  if (!priceHistory[sym]) priceHistory[sym] = [];
+  priceHistory[sym].push(price);
+  if (priceHistory[sym].length > 60) priceHistory[sym].shift();
+  drawCombinedChart();
+}
+
+function drawCombinedChart(){
+  const canvas = document.getElementById('combinedChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  Object.keys(priceHistory).forEach(sym => {
+    const data = priceHistory[sym];
+    if (data.length < 2) return;
+    const base = data[0];
+    const pct = data.map(p => (p - base) / base * 100);
+    const min = Math.min(...pct), max = Math.max(...pct);
+    const range = (max - min) || 1;
+    ctx.beginPath();
+    pct.forEach((p, i) => {
+      const x = (i / (data.length - 1)) * w;
+      const y = h - ((p - min) / range) * (h - 16) - 8;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = seriesColors[sym] || '#8A90A6';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
 }
 
 /* ---------------- Illustrative pattern signals ---------------- */
