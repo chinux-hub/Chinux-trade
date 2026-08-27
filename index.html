@@ -101,6 +101,46 @@
 
   .save-btn{background:var(--gold); color:#14100A; border:none; padding:10px 20px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; margin-top:16px;}
   .save-status{font-size:12px; margin-top:8px; color:var(--up);}
+
+  /* ---------- Toasts ---------- */
+  #toastHost{position:fixed; top:16px; left:0; right:0; z-index:200; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none;}
+  .toast{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:12px 18px; border-radius:10px;
+    font-size:13px; box-shadow:0 8px 24px -8px rgba(0,0,0,.5); animation:toastIn .25s ease both; max-width:88vw;
+  }
+  .toast.error{border-color:var(--down); color:var(--down);}
+  .toast.success{border-color:var(--up); color:var(--up);}
+  @keyframes toastIn{ from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ---------- Confirm modal ---------- */
+  #confirmOverlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:150; display:none;
+    align-items:center; justify-content:center;
+  }
+  #confirmOverlay.show{display:flex;}
+  .confirm-card{
+    width:min(320px,88vw); background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px;
+    animation:fadeUp .2s ease both;
+  }
+  .confirm-card h4{font-size:16px; margin-bottom:8px;}
+  .confirm-card p{font-size:13px; color:var(--ink-dim); line-height:1.5; margin-bottom:20px;}
+  .confirm-actions{display:flex; gap:10px;}
+  .confirm-actions button{flex:1; padding:12px; border-radius:8px; border:none; font-weight:700; font-size:13px; cursor:pointer;}
+  .confirm-cancel{background:var(--panel-2); color:var(--ink);}
+  .confirm-ok{background:var(--gold); color:#14100A;}
+
+  /* ---------- Bottom nav ---------- */
+  .bottom-nav{
+    position:fixed; bottom:0; left:0; right:0; z-index:20; background:rgba(18,21,29,.95); backdrop-filter:blur(10px);
+    border-top:1px solid var(--line); display:flex; padding-bottom:env(safe-area-inset-bottom);
+  }
+  .bottom-nav .tab-btn{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:10px 4px 8px;
+    margin-right:0; border-bottom:none; border-top:2px solid transparent;
+  }
+  .bottom-nav .tab-btn.active{border-top-color:var(--gold); border-bottom:none;}
+  .bottom-nav .tab-icon{font-size:17px;}
+  main{padding-bottom:88px;}
   .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.02em;}
   .brand .dot{width:8px;height:8px;border-radius:50%; background:var(--gold);}
   .net-pill{
@@ -208,11 +248,23 @@
       <div class="net-pill" id="netPill"><span class="dot"></span> <span id="netText">Online</span></div>
     </header>
 
-    <div class="tabs" style="padding-left:24px;">
-      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-      <button class="tab-btn" data-tab="history">History</button>
-      <button class="tab-btn" data-tab="commissions">Commissions</button>
-      <button class="tab-btn" data-tab="admin">Admin</button>
+    <div class="tabs bottom-nav">
+      <button class="tab-btn active" data-tab="dashboard"><span class="tab-icon">◈</span>Dashboard</button>
+      <button class="tab-btn" data-tab="history"><span class="tab-icon">☰</span>History</button>
+      <button class="tab-btn" data-tab="commissions"><span class="tab-icon">%</span>Commissions</button>
+      <button class="tab-btn" data-tab="admin"><span class="tab-icon">⚙</span>Admin</button>
+    </div>
+
+    <div id="toastHost"></div>
+    <div id="confirmOverlay">
+      <div class="confirm-card">
+        <h4 id="confirmTitle">Confirm trade</h4>
+        <p id="confirmBody"></p>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancelBtn">Cancel</button>
+          <button class="confirm-ok" id="confirmOkBtn">Confirm</button>
+        </div>
+      </div>
     </div>
 
     <main>
@@ -294,6 +346,31 @@
             </p>
           </div>
 
+          <div class="card highlight-card" style="grid-column:1/-1">
+            <h3>Autonomous Trading</h3>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+              <input type="checkbox" id="autoTradeToggle">
+              Let the bot trade on its own (real orders, real signals)
+            </label>
+            <div class="slider-row">
+              <label>Amount per trade: $<span id="autoMinVal">10</span> – $<span id="autoMaxVal">15</span></label>
+              <input type="range" id="autoMinSlider" min="1" max="50" value="10" style="margin-bottom:6px;">
+              <input type="range" id="autoMaxSlider" min="1" max="50" value="15">
+            </div>
+            <div class="slider-row">
+              <label>Daily loss limit <span class="val" id="autoLossVal">$5</span></label>
+              <input type="range" id="autoLossSlider" min="1" max="50" value="5">
+            </div>
+            <div id="autoStatus" style="font-size:12px; color:var(--ink-dim); margin-top:10px;">Loading status…</div>
+            <div id="extensionBanner" style="display:none; margin-top:12px; padding:12px; border:1px solid var(--gold-dim); border-radius:10px; background:rgba(216,178,106,.08);">
+              <p style="font-size:13px; margin-bottom:10px;" id="extensionText"></p>
+              <div class="confirm-actions">
+                <button class="confirm-cancel" id="denyExtBtn">Deny</button>
+                <button class="confirm-ok" id="approveExtBtn">Approve +$5</button>
+              </div>
+            </div>
+          </div>
+
           <div class="card" style="grid-column:1/-1">
             <h3>Commission &amp; Payout Settings</h3>
             <div class="slider-row">
@@ -331,6 +408,29 @@ const modeHint = document.getElementById('modeHint');
 const balanceLabel = document.getElementById('balanceLabel');
 const balanceSubLabel = document.getElementById('balanceSubLabel');
 
+/* ---------------- Toasts ---------------- */
+function showToast(message, type = ''){
+  const host = document.getElementById('toastHost');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = message;
+  host.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3200);
+}
+
+/* ---------------- Confirm modal ---------------- */
+function confirmTrade(title, body){
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('confirmOverlay');
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmBody').textContent = body;
+    overlay.classList.add('show');
+    const cleanup = (result) => { overlay.classList.remove('show'); resolve(result); };
+    document.getElementById('confirmOkBtn').onclick = () => cleanup(true);
+    document.getElementById('confirmCancelBtn').onclick = () => cleanup(false);
+  });
+}
+
 /* ---------------- Tab switching ---------------- */
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.onclick = () => {
@@ -340,6 +440,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'history') loadHistory();
     if (btn.dataset.tab === 'commissions') loadCommissions();
+    if (btn.dataset.tab === 'admin') loadAutotradeStatus();
   };
 });
 
@@ -396,6 +497,79 @@ document.getElementById('reinvestBtn').onclick = async () => {
   } catch (e) {
     status.textContent = 'Could not reach backend.';
   }
+};
+
+/* ---------------- Autotrade panel ---------------- */
+async function loadAutotradeStatus(){
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/autotrade/status`);
+    const data = await res.json();
+    document.getElementById('autoTradeToggle').checked = data.settings.enabled;
+    document.getElementById('autoMinSlider').value = data.settings.minTrade;
+    document.getElementById('autoMinVal').textContent = data.settings.minTrade;
+    document.getElementById('autoMaxSlider').value = data.settings.maxTrade;
+    document.getElementById('autoMaxVal').textContent = data.settings.maxTrade;
+    document.getElementById('autoLossSlider').value = data.settings.dailyLossLimit;
+    document.getElementById('autoLossVal').textContent = '$' + data.settings.dailyLossLimit;
+
+    const allowance = data.settings.dailyLossLimit + (data.state.extensionUsed ? 5 : 0) - data.state.dailyLossUsed;
+    document.getElementById('autoStatus').textContent =
+      `${data.settings.enabled ? 'Active' : 'Off'} · Today's loss used: $${data.state.dailyLossUsed.toFixed(2)} · Remaining budget: $${Math.max(0,allowance).toFixed(2)}`;
+
+    const banner = document.getElementById('extensionBanner');
+    if (data.state.pendingExtension) {
+      banner.style.display = 'block';
+      document.getElementById('extensionText').textContent =
+        `Daily limit reached, but a new opportunity appeared on ${data.state.pendingExtension.symbol}: ${data.state.pendingExtension.reason}. Approve an extra $5 for today?`;
+    } else {
+      banner.style.display = 'none';
+    }
+  } catch (e) {
+    document.getElementById('autoStatus').textContent = 'Could not reach backend.';
+  }
+}
+
+document.getElementById('autoTradeToggle').onchange = async (e) => {
+  if (e.target.checked && !adminToken) {
+    adminToken = prompt('Enter your backend admin token to enable autonomous trading:');
+    if (!adminToken) { e.target.checked = false; return; }
+  }
+  await saveAutotradeSettings();
+};
+document.getElementById('autoMinSlider').oninput = (e) => document.getElementById('autoMinVal').textContent = e.target.value;
+document.getElementById('autoMaxSlider').oninput = (e) => document.getElementById('autoMaxVal').textContent = e.target.value;
+document.getElementById('autoLossSlider').oninput = (e) => document.getElementById('autoLossVal').textContent = '$' + e.target.value;
+document.getElementById('autoMinSlider').onchange = saveAutotradeSettings;
+document.getElementById('autoMaxSlider').onchange = saveAutotradeSettings;
+document.getElementById('autoLossSlider').onchange = saveAutotradeSettings;
+
+async function saveAutotradeSettings(){
+  try {
+    await fetch(`${BACKEND_URL}/api/autotrade/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken || '' },
+      body: JSON.stringify({
+        enabled: document.getElementById('autoTradeToggle').checked,
+        minTrade: document.getElementById('autoMinSlider').value,
+        maxTrade: document.getElementById('autoMaxSlider').value,
+        dailyLossLimit: document.getElementById('autoLossSlider').value
+      })
+    });
+    showToast('Autotrade settings saved.', 'success');
+    loadAutotradeStatus();
+  } catch (e) {
+    showToast('Could not save autotrade settings.', 'error');
+  }
+}
+
+document.getElementById('approveExtBtn').onclick = async () => {
+  await fetch(`${BACKEND_URL}/api/autotrade/approve-extension`, { method: 'POST', headers: { 'x-admin-token': adminToken || '' } });
+  showToast('Extension approved — bot can trade $5 more today.', 'success');
+  loadAutotradeStatus();
+};
+document.getElementById('denyExtBtn').onclick = async () => {
+  await fetch(`${BACKEND_URL}/api/autotrade/deny-extension`, { method: 'POST', headers: { 'x-admin-token': adminToken || '' } });
+  loadAutotradeStatus();
 };
 
 /* ---------------- Admin settings persistence ---------------- */
@@ -460,11 +634,11 @@ document.getElementById('liveModeToggle').onchange = async (e) => {
 async function verifyLiveConnection(){
   try {
     const res = await fetch(`${BACKEND_URL}/api/balance`, { headers: { 'x-admin-token': adminToken } });
-    if (res.status === 401) { alert('Token rejected — check it matches your backend\'s ADMIN_TOKEN.'); return false; }
-    if (!res.ok) { alert('Backend reachable but returned an error — check backend logs.'); return false; }
+    if (res.status === 401) { showToast('Token rejected — check it matches your backend\'s ADMIN_TOKEN.', 'error'); return false; }
+    if (!res.ok) { showToast('Backend reachable but returned an error — check backend logs.', 'error'); return false; }
     return true;
   } catch (e) {
-    alert('Could not reach the backend. Check the URL and your connection.');
+    showToast('Could not reach the backend. Check the URL and your connection.', 'error');
     return false;
   }
 }
@@ -725,32 +899,59 @@ document.getElementById('buyBtn').onclick = async () => {
   const symSlash = document.getElementById('tradeSym').value;
   const sym = symSlash.replace('/','').toLowerCase();
   const amt = parseFloat(document.getElementById('tradeAmt').value) || 0;
+  if (!amt) { showToast('Enter an amount first.', 'error'); return; }
+
+  const ok = await confirmTrade(
+    liveMode ? 'Confirm LIVE buy' : 'Confirm practice buy',
+    `Buy $${amt.toFixed(2)} of ${symSlash}${liveMode ? ' — this places a REAL order on your Bybit account.' : ' (simulated, no real money).'}`
+  );
+  if (!ok) return;
 
   if (liveMode) {
     log(`Sending LIVE buy order: ${symSlash} — $${amt.toFixed(2)}…`);
     const result = await placeLiveOrder(symSlash.replace('/',''), 'Buy', amt);
     log(`Bybit response: ${result.retMsg || JSON.stringify(result)}`);
-    if (result.retCode === 0) { refreshLiveBalance(); logTrade(symSlash, 'BUY', amt, lastPrices[sym], 'live', 0); }
+    if (result.retCode === 0) {
+      refreshLiveBalance();
+      logTrade(symSlash, 'BUY', amt, lastPrices[sym], 'live', 0);
+      showToast('Live buy order placed.', 'success');
+    } else {
+      showToast(result.retMsg || 'Order failed.', 'error');
+    }
     return;
   }
 
-  if (amt > balance) { log('Insufficient practice balance.'); return; }
+  if (amt > balance) { showToast('Insufficient practice balance.', 'error'); return; }
   const price = lastPrices[sym];
   balance -= amt;
   document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
   log(`BUY ${symSlash} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
   logTrade(symSlash, 'BUY', amt, price, 'practice', 0);
+  showToast('Practice buy executed.', 'success');
 };
 document.getElementById('sellBtn').onclick = async () => {
   const symSlash = document.getElementById('tradeSym').value;
   const sym = symSlash.replace('/','').toLowerCase();
   const amt = parseFloat(document.getElementById('tradeAmt').value) || 0;
+  if (!amt) { showToast('Enter an amount first.', 'error'); return; }
+
+  const ok = await confirmTrade(
+    liveMode ? 'Confirm LIVE sell' : 'Confirm practice sell',
+    `Sell $${amt.toFixed(2)} of ${symSlash}${liveMode ? ' — this places a REAL order on your Bybit account.' : ' (simulated, no real money).'}`
+  );
+  if (!ok) return;
 
   if (liveMode) {
     log(`Sending LIVE sell order: ${symSlash} — $${amt.toFixed(2)}…`);
     const result = await placeLiveOrder(symSlash.replace('/',''), 'Sell', amt);
     log(`Bybit response: ${result.retMsg || JSON.stringify(result)}`);
-    if (result.retCode === 0) { refreshLiveBalance(); logTrade(symSlash, 'SELL', amt, lastPrices[sym], 'live', 0); }
+    if (result.retCode === 0) {
+      refreshLiveBalance();
+      logTrade(symSlash, 'SELL', amt, lastPrices[sym], 'live', 0);
+      showToast('Live sell order placed.', 'success');
+    } else {
+      showToast(result.retMsg || 'Order failed.', 'error');
+    }
     return;
   }
 
@@ -759,6 +960,7 @@ document.getElementById('sellBtn').onclick = async () => {
   document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
   log(`SELL ${symSlash} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
   logTrade(symSlash, 'SELL', amt, price, 'practice', 0);
+  showToast('Practice sell executed.', 'success');
 };
 
 /* ---------------- Commission / payout sliders ---------------- */

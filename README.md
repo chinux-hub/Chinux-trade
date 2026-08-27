@@ -29,6 +29,21 @@
 
 So today: trading, balance checks, and crypto in/out can all be abstracted away from the Bybit app through this backend. Moving between Naira in your bank account and your Bybit balance still requires the Bybit app/website itself, or a dedicated fiat off-ramp integration we haven't built yet.
 
+## Autonomous trading (real signal engine + auto-execution)
+`server-bybit.js` now runs a real strategy — SMA(9)/SMA(21) crossover + RSI(14) filter on 15-minute candles, fetched from Bybit's public kline endpoint — checked every 5 minutes for BTC, ETH, and SOL. It replaces the old placeholder "Predicted Signals" cards with actual analysis.
+
+**Hard safety limits, enforced server-side (not just UI suggestions):**
+- **$10–15 per trade** (adjustable in Admin), bot won't exceed this regardless of signal strength
+- **$5 daily loss limit** — once today's realized losses hit this, the bot stops trading for the rest of the day
+- **Resets automatically at midnight** (UTC date rollover)
+- **One-time $5 extension**: if the daily limit is hit but a fresh BUY signal appears, the bot flags it in the Admin tab instead of trading — it only extends today's budget if you tap "Approve" there. Capped at one extension per day ($10 total max loss/day).
+
+**Position tracking**: the backend now tracks a simple average-cost position per coin (`positions.json`) so it can compute real realized P&L when it sells — that P&L is what counts against the daily loss limit, and it's the same number shown in your Trade History.
+
+**Turning it on**: Admin tab → "Autonomous Trading" toggle. Requires your admin token, same as Live Mode. It will only place real orders if this toggle is on — leaving it off means the signal engine still runs and informs the Dashboard's signal cards (future wiring), but no autonomous orders are placed.
+
+**What this is NOT yet**: a sophisticated ML/pattern-recognition system — it's a transparent, explainable indicator strategy on purpose, so you can verify why it traded. A more advanced model is a future upgrade once this simpler version has a track record.
+
 ## Real trading backend — two exchanges, two separate deployments
 There are now two backend files: `server-binance.js` and `server-bybit.js`. They're independent — deploy each as its own Render Web Service, since they need different code and different environment variables.
 

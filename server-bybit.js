@@ -200,6 +200,146 @@ app.post('/api/commissions/reinvest', (req, res) => {
   res.json({ reinvestedNow: pending, reinvestedTotal: data.reinvestedTotal });
 });
 
+// ---- Autotrade: real signal engine + autonomous execution loop ----
+const AUTOTRADE_SETTINGS_FILE = './autotrade-settings.json';
+const AUTOTRADE_STATE_FILE = './autotrade-state.json';
+const POSITIONS_FILE = './positions.json';
+const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+
+function readJSON(path, fallback){ try { return fs.existsSync(path) ? JSON.parse(fs.readFileSync(path,'utf8')) : fallback; } catch(e){ return fallback; } }
+function writeJSON(path, data){ fs.writeFileSync(path, JSON.stringify(data)); }
+
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+
+function getAutotradeSettings(){
+  return readJSON(AUTOTRADE_SETTINGS_FILE, { enabled: false, minTrade: 10, maxTrade: 15, dailyLossLimit: 5, extensionAmount: 5 });
+}
+function getAutotradeState(){
+  let state = readJSON(AUTOTRADE_STATE_FILE, { date: todayStr(), dailyLossUsed: 0, extensionUsed: false, pendingExtension: null });
+  if (state.date !== todayStr()) {
+    state = { date: todayStr(), dailyLossUsed: 0, extensionUsed: false, pendingExtension: null };
+    writeJSON(AUTOTRADE_STATE_FILE, state);
+  }
+  return state;
+}
+function getPositions(){ return readJSON(POSITIONS_FILE, {}); }
+
+app.get('/api/autotrade/status', (req, res) => {
+  res.json({ settings: getAutotradeSettings(), state: getAutotradeState(), positions: getPositions() });
+});
+
+app.post('/api/autotrade/toggle', (req, res) => {
+  const settings = getAutotradeSettings();
+  settings.enabled = !!req.body.enabled;
+  if (req.body.minTrade) settings.minTrade = Number(req.body.minTrade);
+  if (req.body.maxTrade) settings.maxTrade = Number(req.body.maxTrade);
+  if (req.body.dailyLossLimit) settings.dailyLossLimit = Number(req.body.dailyLossLimit);
+  writeJSON(AUTOTRADE_SETTINGS_FILE, settings);
+  res.json(settings);
+});
+
+app.post('/api/autotrade/approve-extension', (req, res) => {
+  const state = getAutotradeState();
+  if (!state.pendingExtension) return res.json({ error: 'No pending extension request' });
+  state.extensionUsed = true;
+  state.pendingExtension = null;
+  writeJSON(AUTOTRADE_STATE_FILE, state);
+  res.json({ approved: true, state });
+});
+
+app.post('/api/autotrade/deny-extension', (req, res) => {
+  const state = getAutotradeState();
+  state.pendingExtension = null;
+  writeJSON(AUTOTRADE_STATE_FILE, state);
+  res.json({ denied: true, state });
+});
+
+// ---- Signal engine: SMA(9)/SMA(21) crossover + RSI(14) on 15m klines ----
+async function getKlines(symbol){
+  const url = `${BYBIT_BASE_URL}/v5/market/kline?category=spot&symbol=${symbol}&interval=15&limit=50`;
+  const res = await axios.get(url);
+  return res.data?.result?.list?.map(k => parseFloat(k[4])).reverse() || []; // close prices, oldest→newest
+}
+function sma(arr, period){ if (arr.length < period) return null; const slice = arr.slice(-period); return slice.reduce((a,b)=>a+b,0)/period; }
+function rsi(arr, period=14){
+  if (arr.length < period+1) return null;
+  let gains=0, losses=0;
+  for (let i=arr.length-period; i<arr.length; i++){
+    const diff = arr[i]-arr[i-1];
+    if (diff>0) gains+=diff; else losses-=diff;
+  }
+  const avgGain=gains/period, avgLoss=losses/period;
+  if (avgLoss===0) return 100;
+  const rs = avgGain/avgLoss;
+  return 100 - (100/(1+rs));
+}
+async function computeSignal(symbol){
+  try {
+    const closes = await getKlines(symbol);
+    if (closes.length < 22) return { signal: 'HOLD', reason: 'insufficient data' };
+    const smaShort = sma(closes, 9), smaLong = sma(closes, 21);
+    const prevShort = sma(closes.slice(0,-1), 9), prevLong = sma(closes.slice(0,-1), 21);
+    const r = rsi(closes);
+    const crossedUp = prevShort <= prevLong && smaShort > smaLong;
+    const crossedDown = prevShort >= prevLong && smaShort < smaLong;
+    if (crossedUp && r < 70) return { signal: 'BUY', reason: `SMA9 crossed above SMA21, RSI ${r.toFixed(1)}`, price: closes[closes.length-1] };
+    if (crossedDown && r > 30) return { signal: 'SELL', reason: `SMA9 crossed below SMA21, RSI ${r.toFixed(1)}`, price: closes[closes.length-1] };
+    return { signal: 'HOLD', reason: `RSI ${r ? r.toFixed(1) : 'n/a'}`, price: closes[closes.length-1] };
+  } catch (e) {
+    return { signal: 'HOLD', reason: 'signal fetch failed' };
+  }
+}
+
+async function autotradeTick(){
+  const settings = getAutotradeSettings();
+  if (!settings.enabled) return;
+  const state = getAutotradeState();
+  const allowance = settings.dailyLossLimit + (state.extensionUsed ? settings.extensionAmount : 0) - state.dailyLossUsed;
+
+  for (const symbol of SYMBOLS) {
+    const result = await computeSignal(symbol);
+    if (result.signal === 'HOLD') continue;
+
+    if (allowance <= 0) {
+      // Paused for losses — only flag a pending extension request for a BUY
+      // signal (a fresh opportunity), and only once per day.
+      if (result.signal === 'BUY' && !state.extensionUsed && !state.pendingExtension) {
+        state.pendingExtension = { symbol, reason: result.reason, time: new Date().toISOString() };
+        writeJSON(AUTOTRADE_STATE_FILE, state);
+      }
+      continue;
+    }
+
+    const positions = getPositions();
+    const pos = positions[symbol] || { qty: 0, avgPrice: 0 };
+    const tradeAmt = settings.minTrade + Math.random() * (settings.maxTrade - settings.minTrade);
+
+    if (result.signal === 'BUY') {
+      const qty = tradeAmt / result.price;
+      pos.avgPrice = pos.qty > 0 ? ((pos.avgPrice*pos.qty) + (result.price*qty)) / (pos.qty+qty) : result.price;
+      pos.qty += qty;
+      positions[symbol] = pos;
+      writeJSON(POSITIONS_FILE, positions);
+      const trades = readTrades();
+      trades.unshift({ symbol: symbol.replace('USDT','/USDT'), side: 'AUTO-BUY', amountUsd: tradeAmt, price: result.price, mode: 'autotrade', pnl: 0, time: new Date().toISOString() });
+      writeJSON(TRADES_FILE, trades.slice(0,500));
+    }
+
+    if (result.signal === 'SELL' && pos.qty > 0) {
+      const sellQty = Math.min(pos.qty, tradeAmt / result.price);
+      const pnl = (result.price - pos.avgPrice) * sellQty;
+      pos.qty -= sellQty;
+      positions[symbol] = pos;
+      writeJSON(POSITIONS_FILE, positions);
+      if (pnl < 0) { state.dailyLossUsed += Math.abs(pnl); writeJSON(AUTOTRADE_STATE_FILE, state); }
+      const trades = readTrades();
+      trades.unshift({ symbol: symbol.replace('USDT','/USDT'), side: 'AUTO-SELL', amountUsd: sellQty*result.price, price: result.price, mode: 'autotrade', pnl, time: new Date().toISOString() });
+      writeJSON(TRADES_FILE, trades.slice(0,500));
+    }
+  }
+}
+setInterval(autotradeTick, 5 * 60 * 1000); // check every 5 minutes
+
 // ---- Deposit address (crypto only — see README for why fiat deposit/
 // withdrawal isn't handled here) ----
 // query: ?coin=USDT&chain=TRX
