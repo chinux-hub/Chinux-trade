@@ -133,6 +133,73 @@ app.get('/api/orders/open', async (req, res) => {
   }
 });
 
+// ---- Admin settings persistence (commission %, liquidation %) ----
+const fs = require('fs');
+const SETTINGS_FILE = './settings.json';
+const DEFAULT_SETTINGS = { commissionPct: 20, liquidationPct: 30 };
+
+app.get('/api/settings', (req, res) => {
+  try {
+    if (fs.existsSync(SETTINGS_FILE)) {
+      return res.json(JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')));
+    }
+    res.json(DEFAULT_SETTINGS);
+  } catch (e) {
+    res.status(500).json({ error: 'Could not read settings' });
+  }
+});
+
+app.post('/api/settings', (req, res) => {
+  try {
+    const { commissionPct, liquidationPct } = req.body;
+    const data = {
+      commissionPct: Number(commissionPct) || 0,
+      liquidationPct: Number(liquidationPct) || 0
+    };
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data));
+    res.json({ saved: true, ...data });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not save settings' });
+  }
+});
+
+// ---- Trade history (persisted ledger of practice + live trades) ----
+const TRADES_FILE = './trades.json';
+function readTrades(){ try { return fs.existsSync(TRADES_FILE) ? JSON.parse(fs.readFileSync(TRADES_FILE,'utf8')) : []; } catch(e){ return []; } }
+
+app.get('/api/trades', (req, res) => res.json(readTrades()));
+
+app.post('/api/trades', (req, res) => {
+  try {
+    const { symbol, side, amountUsd, price, mode, pnl } = req.body;
+    const trades = readTrades();
+    trades.unshift({ symbol, side, amountUsd, price: price || null, mode, pnl: pnl || 0, time: new Date().toISOString() });
+    fs.writeFileSync(TRADES_FILE, JSON.stringify(trades.slice(0, 500)));
+    res.json({ saved: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Could not save trade' });
+  }
+});
+
+// ---- Commission ledger (from client apps, once connected) ----
+const COMM_FILE = './commissions.json';
+function readComm(){ try { return fs.existsSync(COMM_FILE) ? JSON.parse(fs.readFileSync(COMM_FILE,'utf8')) : { entries: [], reinvestedTotal: 0 }; } catch(e){ return { entries: [], reinvestedTotal: 0 }; } }
+
+app.get('/api/commissions', (req, res) => {
+  const data = readComm();
+  const pending = data.entries.filter(e => !e.reinvested).reduce((s,e) => s + e.amount, 0);
+  res.json({ ...data, pendingTotal: pending });
+});
+
+app.post('/api/commissions/reinvest', (req, res) => {
+  const data = readComm();
+  const pending = data.entries.filter(e => !e.reinvested).reduce((s,e) => s + e.amount, 0);
+  data.entries = data.entries.map(e => ({ ...e, reinvested: true }));
+  data.reinvestedTotal = (data.reinvestedTotal || 0) + pending;
+  fs.writeFileSync(COMM_FILE, JSON.stringify(data));
+  res.json({ reinvestedNow: pending, reinvestedTotal: data.reinvestedTotal });
+});
+
 // ---- Deposit address (crypto only — see README for why fiat deposit/
 // withdrawal isn't handled here) ----
 // query: ?coin=USDT&chain=TRX

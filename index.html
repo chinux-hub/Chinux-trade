@@ -77,9 +77,30 @@
   #app{display:none;}
   header{
     display:flex; align-items:center; justify-content:space-between;
-    padding:18px 24px; border-bottom:1px solid var(--line);
+    padding:18px 24px 0; border-bottom:1px solid var(--line);
     position:sticky; top:0; background:rgba(11,13,18,.85); backdrop-filter:blur(10px); z-index:10;
   }
+  .tabs{display:flex; gap:4px; padding-top:14px;}
+  .tab-btn{
+    background:none; border:none; color:var(--ink-dim); font-family:'Space Grotesk'; font-size:13px; font-weight:600;
+    padding:10px 4px; cursor:pointer; border-bottom:2px solid transparent; margin-right:22px;
+  }
+  .tab-btn.active{color:var(--ink); border-bottom-color:var(--gold);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  .highlight-card{border-color:var(--gold-dim); background:linear-gradient(180deg, rgba(216,178,106,.06), var(--panel));}
+
+  .info-tip{position:relative; display:inline-flex; align-items:center; margin-left:6px; cursor:help;}
+  .info-tip .dot{width:15px;height:15px;border-radius:50%;border:1px solid var(--ink-dim);color:var(--ink-dim);font-size:10px;display:flex;align-items:center;justify-content:center;}
+  .info-tip .tip{
+    display:none; position:absolute; bottom:22px; left:0; width:240px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:8px; padding:10px; font-size:11px; color:var(--ink-dim); line-height:1.5; z-index:5;
+  }
+  .info-tip:hover .tip, .info-tip:active .tip{display:block;}
+
+  .save-btn{background:var(--gold); color:#14100A; border:none; padding:10px 20px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; margin-top:16px;}
+  .save-status{font-size:12px; margin-top:8px; color:var(--up);}
   .brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.02em;}
   .brand .dot{width:8px;height:8px;border-radius:50%; background:var(--gold);}
   .net-pill{
@@ -186,19 +207,22 @@
       <div class="net-pill" id="netPill"><span class="dot"></span> <span id="netText">Online</span></div>
     </header>
 
+    <div class="tabs" style="padding-left:24px;">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="history">History</button>
+      <button class="tab-btn" data-tab="commissions">Commissions</button>
+      <button class="tab-btn" data-tab="admin">Admin</button>
+    </div>
+
     <main>
+      <div class="tab-panel active" id="tab-dashboard">
       <div class="grid">
-        <div class="card" style="grid-column:1/-1">
-          <h3>Trading Mode</h3>
-          <div style="display:flex; align-items:center; gap:14px;">
-            <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
-              <input type="checkbox" id="liveModeToggle">
-              Live trading (real Bybit account)
-            </label>
-          </div>
-          <p style="font-size:12px; color:var(--ink-dim); margin-top:10px; line-height:1.5;" id="modeHint">
-            Off = Practice Mode (simulated money). Switching on will ask for your backend admin token once — it's kept only in this browser tab's memory, never saved or hardcoded.
-          </p>
+        <div class="card highlight-card">
+          <h3 id="balanceLabel">Practice Portfolio</h3>
+          <div class="stat-label" id="balanceSubLabel">Simulated balance</div>
+          <div class="stat-big" id="balance">$10,000.00</div>
+          <div class="stat-label" style="margin-top:10px">Unrealized P/L</div>
+          <div class="stat-big" id="pnl" style="font-size:20px">$0.00</div>
         </div>
 
         <div class="card">
@@ -208,14 +232,6 @@
             <div class="ticker-row"><span class="ticker-sym">ETH/USDT</span><span class="skeleton"></span></div>
             <div class="ticker-row"><span class="ticker-sym">SOL/USDT</span><span class="skeleton"></span></div>
           </div>
-        </div>
-
-        <div class="card">
-          <h3 id="balanceLabel">Practice Portfolio</h3>
-          <div class="stat-label" id="balanceSubLabel">Simulated balance</div>
-          <div class="stat-big" id="balance">$10,000.00</div>
-          <div class="stat-label" style="margin-top:10px">Unrealized P/L</div>
-          <div class="stat-big" id="pnl" style="font-size:20px">$0.00</div>
         </div>
 
         <div class="card" style="grid-column:1/-1">
@@ -233,27 +249,73 @@
           </div>
           <div id="tradeLog" style="margin-top:14px"></div>
         </div>
+      </div>
+      </div>
 
-        <div class="card" style="grid-column:1/-1">
-          <h3>Commission &amp; Payout Settings (Admin)</h3>
-          <div class="slider-row">
-            <label>Client commission on profit <span class="val" id="commVal">20%</span></label>
-            <input type="range" id="commSlider" min="0" max="100" value="20">
+      <div class="tab-panel" id="tab-history">
+        <div class="grid">
+          <div class="card" style="grid-column:1/-1">
+            <h3>Trade History <span style="color:var(--ink-dim); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">— practice &amp; live, most recent first</span></h3>
+            <div id="historyList" style="margin-top:6px;"><p class="stat-label">Loading…</p></div>
           </div>
-          <div class="slider-row">
-            <label>Profit auto-liquidated to cash <span class="val" id="liqVal">30%</span></label>
-            <input type="range" id="liqSlider" min="0" max="100" value="30">
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-commissions">
+        <div class="grid">
+          <div class="card highlight-card" style="grid-column:1/-1">
+            <h3>Commission Pool</h3>
+            <div class="stat-label">Pending (not yet reinvested)</div>
+            <div class="stat-big" id="commPending">$0.00</div>
+            <div class="stat-label" style="margin-top:10px">Total reinvested to date</div>
+            <div class="stat-big" id="commReinvested" style="font-size:20px">$0.00</div>
+            <button class="save-btn" id="reinvestBtn">Reinvest pending into trading capital</button>
+            <div class="save-status" id="reinvestStatus"></div>
           </div>
-          <p style="font-size:12px; color:var(--ink-dim); margin-top:12px; line-height:1.5;">
-            Automated bank remittance requires a licensed payment partner (e.g. a payments API tied to your bank).
-            This panel stores the percentages the sync engine and payout worker will apply once that's connected —
-            see the roadmap for setup.
-          </p>
+          <div class="card" style="grid-column:1/-1">
+            <h3>Commission Entries <span style="color:var(--ink-dim); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">— from connected client apps</span></h3>
+            <div id="commList" style="margin-top:6px;"><p class="stat-label">No client activity yet — this populates once a client app is connected and reports profit.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-admin">
+        <div class="grid">
+          <div class="card" style="grid-column:1/-1">
+            <h3>Trading Mode</h3>
+            <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+              <input type="checkbox" id="liveModeToggle">
+              Live trading (real Bybit account)
+            </label>
+            <p style="font-size:12px; color:var(--ink-dim); margin-top:10px; line-height:1.5;" id="modeHint">
+              Off = Practice Mode (simulated money). Switching on will ask for your backend admin token once — it's kept only in this browser tab's memory, never saved or hardcoded.
+            </p>
+          </div>
+
+          <div class="card" style="grid-column:1/-1">
+            <h3>Commission &amp; Payout Settings</h3>
+            <div class="slider-row">
+              <label>Client commission on profit
+                <span class="info-tip"><span class="dot">i</span><span class="tip">Percentage of a client's trading profit paid to this master account as commission.</span></span>
+                <span class="val" id="commVal">20%</span>
+              </label>
+              <input type="range" id="commSlider" min="0" max="100" value="20">
+            </div>
+            <div class="slider-row">
+              <label>Profit auto-liquidated to cash
+                <span class="info-tip"><span class="dot">i</span><span class="tip">Automated bank remittance requires a licensed payment partner. This value is stored here for when that's connected — see the project README for setup.</span></span>
+                <span class="val" id="liqVal">30%</span>
+              </label>
+              <input type="range" id="liqSlider" min="0" max="100" value="30">
+            </div>
+            <button class="save-btn" id="saveSettingsBtn">Save Settings</button>
+            <div class="save-status" id="saveStatus"></div>
+          </div>
         </div>
       </div>
     </main>
 
-    <footer>Chinux-Trade Master Console · Practice Mode · Data: Binance public feed</footer>
+    <footer>Chinux-Trade Master Console · Data: Bybit public feed</footer>
   </div>
 
 <script>
@@ -266,6 +328,104 @@ const modeBadge = document.getElementById('modeBadge');
 const modeHint = document.getElementById('modeHint');
 const balanceLabel = document.getElementById('balanceLabel');
 const balanceSubLabel = document.getElementById('balanceSubLabel');
+
+/* ---------------- Tab switching ---------------- */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'history') loadHistory();
+    if (btn.dataset.tab === 'commissions') loadCommissions();
+  };
+});
+
+/* ---------------- Trade history ---------------- */
+async function loadHistory(){
+  const el = document.getElementById('historyList');
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/trades`);
+    const trades = await res.json();
+    if (!trades.length) { el.innerHTML = '<p class="stat-label">No trades yet.</p>'; return; }
+    el.innerHTML = trades.map(t => `
+      <div class="log-row" style="font-size:13px; display:flex; justify-content:space-between;">
+        <span>${new Date(t.time).toLocaleString()} · <b style="color:${t.side==='Buy'||t.side==='BUY'?'var(--up)':'var(--down)'}">${t.side}</b> ${t.symbol} — $${Number(t.amountUsd).toFixed(2)} <span class="badge-mode" style="margin-left:6px;">${t.mode}</span></span>
+      </div>`).join('');
+  } catch (e) {
+    el.innerHTML = '<p class="stat-label">Could not load history — is the backend reachable?</p>';
+  }
+}
+
+async function logTrade(symbol, side, amountUsd, price, mode, pnl){
+  try {
+    await fetch(`${BACKEND_URL}/api/trades`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, side, amountUsd, price, mode, pnl })
+    });
+  } catch (e) { /* non-fatal — history is a record, not critical path */ }
+}
+
+/* ---------------- Commissions ---------------- */
+async function loadCommissions(){
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/commissions`);
+    const data = await res.json();
+    document.getElementById('commPending').textContent = '$' + (data.pendingTotal || 0).toLocaleString(undefined,{minimumFractionDigits:2});
+    document.getElementById('commReinvested').textContent = '$' + (data.reinvestedTotal || 0).toLocaleString(undefined,{minimumFractionDigits:2});
+    const list = document.getElementById('commList');
+    if (data.entries && data.entries.length) {
+      list.innerHTML = data.entries.map(e => `<div class="log-row">${new Date(e.time || Date.now()).toLocaleString()} — $${Number(e.amount).toFixed(2)} ${e.reinvested ? '(reinvested)' : '(pending)'}</div>`).join('');
+    }
+  } catch (e) { /* backend may be asleep on free tier — leave defaults showing */ }
+}
+
+document.getElementById('reinvestBtn').onclick = async () => {
+  const status = document.getElementById('reinvestStatus');
+  status.textContent = 'Reinvesting…';
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/commissions/reinvest`, { method: 'POST' });
+    const data = await res.json();
+    status.textContent = data.reinvestedNow > 0
+      ? `Reinvested $${data.reinvestedNow.toFixed(2)} into trading capital.`
+      : 'Nothing pending to reinvest.';
+    loadCommissions();
+  } catch (e) {
+    status.textContent = 'Could not reach backend.';
+  }
+};
+
+/* ---------------- Admin settings persistence ---------------- */
+async function loadSettings(){
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/settings`);
+    const data = await res.json();
+    document.getElementById('commSlider').value = data.commissionPct;
+    document.getElementById('commVal').textContent = data.commissionPct + '%';
+    document.getElementById('liqSlider').value = data.liquidationPct;
+    document.getElementById('liqVal').textContent = data.liquidationPct + '%';
+  } catch (e) { /* keep defaults if backend unreachable */ }
+}
+
+document.getElementById('saveSettingsBtn').onclick = async () => {
+  const status = document.getElementById('saveStatus');
+  status.textContent = 'Saving…';
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commissionPct: document.getElementById('commSlider').value,
+        liquidationPct: document.getElementById('liqSlider').value
+      })
+    });
+    if (res.ok) { status.textContent = 'Saved ✓'; setTimeout(() => status.textContent = '', 2000); }
+    else status.textContent = 'Save failed — try again.';
+  } catch (e) {
+    status.textContent = 'Could not reach backend.';
+  }
+};
 
 document.getElementById('liveModeToggle').onchange = async (e) => {
   if (e.target.checked) {
@@ -343,6 +503,7 @@ async function enterApp(){
   startTickers();
   renderSignals();
   registerServiceWorker();
+  loadSettings();
 }
 
 function registerServiceWorker(){
@@ -530,7 +691,7 @@ document.getElementById('buyBtn').onclick = async () => {
     log(`Sending LIVE buy order: ${symSlash} — $${amt.toFixed(2)}…`);
     const result = await placeLiveOrder(symSlash.replace('/',''), 'Buy', amt);
     log(`Bybit response: ${result.retMsg || JSON.stringify(result)}`);
-    if (result.retCode === 0) refreshLiveBalance();
+    if (result.retCode === 0) { refreshLiveBalance(); logTrade(symSlash, 'BUY', amt, lastPrices[sym], 'live', 0); }
     return;
   }
 
@@ -539,6 +700,7 @@ document.getElementById('buyBtn').onclick = async () => {
   balance -= amt;
   document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
   log(`BUY ${symSlash} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
+  logTrade(symSlash, 'BUY', amt, price, 'practice', 0);
 };
 document.getElementById('sellBtn').onclick = async () => {
   const symSlash = document.getElementById('tradeSym').value;
@@ -549,7 +711,7 @@ document.getElementById('sellBtn').onclick = async () => {
     log(`Sending LIVE sell order: ${symSlash} — $${amt.toFixed(2)}…`);
     const result = await placeLiveOrder(symSlash.replace('/',''), 'Sell', amt);
     log(`Bybit response: ${result.retMsg || JSON.stringify(result)}`);
-    if (result.retCode === 0) refreshLiveBalance();
+    if (result.retCode === 0) { refreshLiveBalance(); logTrade(symSlash, 'SELL', amt, lastPrices[sym], 'live', 0); }
     return;
   }
 
@@ -557,6 +719,7 @@ document.getElementById('sellBtn').onclick = async () => {
   balance += amt;
   document.getElementById('balance').textContent = '$' + balance.toLocaleString(undefined,{minimumFractionDigits:2});
   log(`SELL ${symSlash} — $${amt.toFixed(2)} @ ${price ? '$'+price.toFixed(2) : 'pending feed'}`);
+  logTrade(symSlash, 'SELL', amt, price, 'practice', 0);
 };
 
 /* ---------------- Commission / payout sliders ---------------- */
