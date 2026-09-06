@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0D12">
+<title>Chinux-Trade Client</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<link rel="apple-touch-icon" href="../icon-192.png">
+<link rel="icon" href="../icon-192.png">
+<meta name="description" content="Chinux-Trade client — follow live signals, practice trade, and track commission across your devices.">
+<style>
+  :root{
+    --bg:#0B0D12; --panel:#12151D; --panel-2:#171B25; --panel-3:#1D2230; --line:#232838;
+    --ink:#EDEFF4; --ink-dim:#9AA1B4;
+    --gold:#D8B26A; --gold-dim:#A98A4E;
+    --up:#3FBF7F; --down:#E5615B;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:
+      radial-gradient(900px 600px at 15% -10%, rgba(216,178,106,.05) 0%, transparent 60%),
+      radial-gradient(1200px 800px at 85% 0%, #161A26 0%, var(--bg) 55%);
+    color:var(--ink); min-height:100vh; -webkit-tap-highlight-color:transparent;
+  }
+  .app{max-width:520px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background:var(--bg);}
+  /* ---- Gate ---- */
+  .gate{position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center;}
+  .gate-logo{width:76px; height:76px; border-radius:50%; background:conic-gradient(from 220deg, var(--gold), #7A5F2E, var(--gold)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:#14100A; margin-bottom:20px;}
+  .gate h1{font-size:20px; margin-bottom:6px;}
+  .gate p{color:var(--ink-dim); font-size:13px; margin-bottom:24px; max-width:320px;}
+  .gate input{width:100%; max-width:280px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:14px; border-radius:10px; font-size:15px; text-align:center; letter-spacing:2px; margin-bottom:12px;}
+  .gate-btn{width:100%; max-width:280px; background:var(--gold); color:#14100A; border:none; border-radius:10px; padding:14px; font-weight:700; font-size:14px; cursor:pointer;}
+  .gate-link{margin-top:16px; color:var(--gold-dim); font-size:12.5px; background:none; border:none; cursor:pointer; text-decoration:underline;}
+  .gate-status{margin-top:14px; font-size:12px; color:var(--gold-dim); min-height:16px;}
+  .gate-token-box{margin-top:18px; width:100%; max-width:320px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:14px; font-size:11px; color:var(--ink-dim); word-break:break-all; text-align:left; display:none;}
+  .gate-token-box strong{color:var(--ink); display:block; margin-bottom:4px;}
+  /* ---- Header ---- */
+  header{position:sticky; top:0; background:rgba(11,13,18,.9); backdrop-filter:blur(10px); z-index:10; padding:16px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line);}
+  .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px;}
+  .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--gold);}
+  .net-pill{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-dim); background:var(--panel-2); padding:5px 10px; border-radius:20px; border:1px solid var(--line);}
+  .net-pill .dot{width:6px; height:6px; border-radius:50%; background:var(--up);}
+  .net-pill.offline .dot{background:var(--down);}
+  /* ---- Content ---- */
+  main{flex:1; padding:18px; padding-bottom:90px;}
+  .tab{display:none;}
+  .tab.active{display:block;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:14px; transition:border-color .2s, transform .2s; position:relative;}
+  .card.glow::before{content:''; position:absolute; inset:-1px; border-radius:var(--radius); padding:1px; background:linear-gradient(135deg, rgba(216,178,106,.35), transparent 40%); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; pointer-events:none;}
+  .card:active{transform:scale(.995);}
+  .card h2{font-size:13px; color:var(--ink-dim); font-weight:600; margin-bottom:12px;}
+  .signal-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line);}
+  .signal-row:last-child{border-bottom:none;}
+  .signal-sym{font-weight:700; font-size:14px;}
+  .signal-reason{font-size:11px; color:var(--ink-dim); margin-top:2px; max-width:200px;}
+  .signal-badge{padding:5px 12px; border-radius:20px; font-size:12px; font-weight:700;}
+  .signal-badge.buy{background:rgba(63,191,127,.15); color:var(--up);}
+  .signal-badge.sell{background:rgba(229,97,91,.15); color:var(--down);}
+  .signal-badge.hold{background:rgba(154,161,180,.12); color:var(--ink-dim);}
+  .trade-btn{margin-top:8px; width:100%; background:var(--panel-2); border:1px solid var(--gold-dim); color:var(--gold); border-radius:8px; padding:10px; font-size:12.5px; font-weight:600; cursor:pointer; transition:background .15s, transform .1s;}
+  .trade-btn:active{transform:scale(.98); background:var(--panel-3);}
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .stat{background:var(--panel-2); border-radius:10px; padding:12px; transition:background .2s;}
+  .chip{background:var(--panel-2); border:1px solid var(--line); color:var(--ink-dim); border-radius:20px; padding:6px 14px; font-size:12px; cursor:pointer; transition:.15s;}
+  .chip.active{background:var(--gold); color:#14100A; border-color:var(--gold); font-weight:700;}
+  .stat .label{font-size:11px; color:var(--ink-dim); margin-bottom:4px;}
+  .stat .value{font-size:18px; font-weight:700;}
+  .stat .value.up{color:var(--up);}
+  .stat .value.down{color:var(--down);}
+  .trade-list-item{display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .trade-list-item:last-child{border-bottom:none;}
+  .trade-meta{font-size:11px; color:var(--ink-dim); margin-top:2px;}
+  .pnl.up{color:var(--up);} .pnl.down{color:var(--down);}
+  .empty{text-align:center; color:var(--ink-dim); font-size:13px; padding:30px 10px;}
+  .settings-row{display:flex; justify-content:space-between; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row .val{color:var(--ink-dim); font-size:12px;}
+  .badge-soon{font-size:10px; color:var(--gold-dim); border:1px solid var(--gold-dim); padding:2px 7px; border-radius:10px;}
+  .copy-btn{background:var(--panel-2); border:1px solid var(--line); color:var(--ink-dim); border-radius:7px; padding:6px 10px; font-size:11px; cursor:pointer;}
+  #live-mode-toggle:checked + #live-mode-toggle-track{background:var(--down); border-color:var(--down);}
+  #live-mode-toggle:checked + #live-mode-toggle-track::after{transform:translateX(18px);}
+  #live-mode-toggle-track::after{content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; background:var(--ink); border-radius:50%; transition:.2s;}
+  .modal-box.live-warn{border-color:var(--down);}
+  #autotrade-toggle:checked + #autotrade-toggle-track{background:var(--gold); border-color:var(--gold);}
+  #autotrade-toggle:checked + #autotrade-toggle-track::after{transform:translateX(18px);}
+  #autotrade-toggle-track::after{content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; background:var(--ink); border-radius:50%; transition:.2s;}
+  input[type="range"]{-webkit-appearance:none; height:4px; background:var(--panel-2); border-radius:2px; outline:none;}
+  input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--gold); cursor:pointer;}
+  /* ---- Bottom nav ---- */
+  .bottom-nav{position:fixed; bottom:0; left:0; right:0; z-index:20; background:rgba(18,21,29,.95); backdrop-filter:blur(10px); border-top:1px solid var(--line); display:flex; max-width:520px; margin:0 auto;}
+  .tab-btn{flex:1; background:none; border:none; color:var(--ink-dim); font-size:10.5px; padding:10px 4px 8px; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; border-top:2px solid transparent;}
+  .tab-btn.active{color:var(--ink); border-top-color:var(--gold);}
+  .tab-btn svg{width:19px; height:19px;}
+  /* ---- Toast ---- */
+  #toast-wrap{position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:300; display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .toast{background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:11px 18px; border-radius:10px; font-size:12.5px; box-shadow:0 6px 20px rgba(0,0,0,.4);}
+  /* ---- Modal ---- */
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:150; display:none; align-items:center; justify-content:center;}
+  .modal-overlay.show{display:flex;}
+  .modal-box{width:min(320px,88vw); background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:24px;}
+  .modal-box h3{font-size:15px; margin-bottom:10px;}
+  .modal-box p{font-size:13px; color:var(--ink-dim); margin-bottom:18px; line-height:1.5;}
+  .modal-actions{display:flex; gap:10px;}
+  .modal-actions button{flex:1; padding:11px; border-radius:8px; border:none; font-weight:600; font-size:13px; cursor:pointer;}
+  .confirm-cancel{background:var(--panel-2); color:var(--ink);}
+  .confirm-ok{background:var(--gold); color:#14100A;}
+</style>
+</head>
+<body>
+
+<div id="toast-wrap"></div>
+
+<!-- ================= GATE ================= -->
+<div class="gate" id="gate">
+  <div class="gate-logo">CX</div>
+  <h1 id="gate-title">Welcome to Chinux-Trade</h1>
+  <p id="gate-sub">Create your trading account to follow live signals, practice trade, and track profit — synced across every device you sign in on.</p>
+
+  <div id="gate-create-view">
+    <input type="text" id="display-name-input" placeholder="Your name" maxlength="30">
+    <button class="gate-btn" id="register-btn">Create account</button>
+    <button class="gate-link" id="restore-link">I already have an account</button>
+  </div>
+
+  <div id="gate-restore-view" style="display:none; width:100%; max-width:280px;">
+    <input type="text" id="restore-token-input" placeholder="Paste your recovery key" autocomplete="off"
+           style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:14px; border-radius:10px; font-size:13px; font-family:monospace; margin-bottom:12px;">
+    <button class="gate-btn" id="restore-submit-btn">Restore account</button>
+    <button class="gate-link" id="restore-cancel-link">Back</button>
+  </div>
+
+  <div class="gate-status" id="gate-status"></div>
+  <div class="gate-token-box" id="token-box">
+    <strong>Save this recovery key</strong>
+    <span id="token-display"></span>
+    <div style="margin-top:10px;"><button class="copy-btn" id="copy-token-btn">Copy key</button></div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div class="app" id="app" style="display:none;">
+  <header>
+    <div class="brand"><span class="dot"></span><span>Chinux-Trade</span></div>
+    <div class="net-pill" id="net-pill"><span class="dot"></span><span id="net-label">Online</span></div>
+  </header>
+
+  <main>
+    <!-- Dashboard -->
+    <div class="tab active" id="tab-dashboard">
+      <div id="live-mode-banner" style="display:none; background:rgba(229,97,91,.12); border:1px solid var(--down); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--down); font-weight:700; text-align:center;">
+        ⚠️ LIVE MODE — real funds
+      </div>
+      <div class="card glow" id="live-balance-card" style="display:none;">
+        <h2>Bybit balance (live)</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="label">Available USDT</div><div class="value" id="live-balance">$0.00</div></div>
+          <div class="stat"><div class="label">Mode</div><div class="value" id="live-mode-label" style="color:var(--down);">Live</div></div>
+        </div>
+      </div>
+      <div class="card glow">
+        <h2>Practice balance</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="label">Balance</div><div class="value" id="stat-balance">$0.00</div></div>
+          <div class="stat"><div class="label">Total P&L</div><div class="value" id="stat-pnl">$0.00</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Price chart</h2>
+        <div style="display:flex; gap:6px; margin-bottom:10px;" id="chart-symbol-tabs">
+          <button class="chip active" data-symbol="BTCUSDT">BTC</button>
+          <button class="chip" data-symbol="ETHUSDT">ETH</button>
+          <button class="chip" data-symbol="SOLUSDT">SOL</button>
+        </div>
+        <div id="candle-chart" style="width:100%; height:220px;"></div>
+        <div class="empty" id="candle-chart-empty" style="display:none;">Chart unavailable — check your connection.</div>
+      </div>
+      <div class="card">
+        <h2>Trading activity</h2>
+        <canvas id="activity-chart" width="600" height="160" style="width:100%; height:160px;"></canvas>
+        <div class="empty" id="activity-chart-empty" style="display:none;">No trades yet — activity will appear here.</div>
+      </div>
+      <div class="card">
+        <h2>Live signals</h2>
+        <div id="signal-list"><div class="empty">Loading signals…</div></div>
+      </div>
+    </div>
+
+
+    <!-- Trades -->
+    <div class="tab" id="tab-trades">
+      <div class="card">
+        <h2>Trade history</h2>
+        <div id="trade-list"><div class="empty">No trades yet — act on a signal from Dashboard.</div></div>
+      </div>
+    </div>
+
+    <!-- Commission -->
+    <div class="tab" id="tab-commission">
+      <div class="card">
+        <h2>Commission</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="label">Current rate</div><div class="value" id="stat-rate">—</div></div>
+          <div class="stat"><div class="label">Paid to date</div><div class="value" id="stat-comm-total">$0.00</div></div>
+        </div>
+        <p style="font-size:11.5px; color:var(--ink-dim); margin-top:14px; line-height:1.5;">
+          Commission accrues automatically on profitable trades made in Live mode, at the rate set above. Practice trades never generate commission.
+        </p>
+      </div>
+      <div class="card">
+        <h2>Commission history</h2>
+        <div id="commission-list"><div class="empty">No commission recorded yet.</div></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="tab" id="tab-settings">
+      <div class="card">
+        <h2>Account</h2>
+        <div class="settings-row"><span>Name</span><span class="val" id="settings-name">—</span></div>
+        <div class="settings-row"><span>Client ID</span><span class="val" id="settings-clientid">—</span></div>
+        <div class="settings-row"><span>Recovery key</span><button class="copy-btn" id="show-token-btn">View</button></div>
+        <div class="settings-row">
+          <span>Sign in with Google</span>
+          <span class="badge-soon">Coming soon</span>
+        </div>
+        <p style="font-size:11px; color:var(--ink-dim); margin-top:6px; line-height:1.5;">
+          A faster, more secure way to log in without keeping track of a recovery key — in addition to, not instead of, the option above.
+        </p>
+      </div>
+      <div class="card">
+        <h2>Autotrade <span id="autotrade-badge" style="font-size:10px; color:var(--ink-dim);">Practice only</span></h2>
+        <div class="settings-row">
+          <span>Enabled</span>
+          <label style="position:relative; display:inline-block; width:40px; height:22px;">
+            <input type="checkbox" id="autotrade-toggle" style="opacity:0; width:0; height:0;">
+            <span id="autotrade-toggle-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--line); border-radius:20px; cursor:pointer; transition:.2s;"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <span>Min trade size</span>
+          <span style="display:flex; align-items:center; gap:4px;">
+            <span style="color:var(--ink-dim); font-size:12px;">$</span>
+            <input type="number" id="autotrade-min" min="1" max="10000" step="1" value="10"
+                   style="width:64px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:5px 7px; font-size:12.5px; text-align:right;">
+          </span>
+        </div>
+        <div class="settings-row">
+          <span>Max trade size</span>
+          <span style="display:flex; align-items:center; gap:4px;">
+            <span style="color:var(--ink-dim); font-size:12px;">$</span>
+            <input type="number" id="autotrade-max" min="1" max="10000" step="1" value="15"
+                   style="width:64px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:5px 7px; font-size:12.5px; text-align:right;">
+          </span>
+        </div>
+        <div class="settings-row">
+          <span>Daily loss limit</span>
+          <span style="display:flex; align-items:center; gap:4px;">
+            <span style="color:var(--ink-dim); font-size:12px;">$</span>
+            <input type="number" id="autotrade-loss-limit" min="1" max="10000" step="1" value="5"
+                   style="width:64px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:5px 7px; font-size:12.5px; text-align:right;">
+          </span>
+        </div>
+        <div class="settings-row"><span>Used today</span><span class="val" id="autotrade-loss-used">$0.00</span></div>
+        <div id="autotrade-error" style="color:var(--down); font-size:11.5px; margin-top:4px; display:none;"></div>
+        <button class="trade-btn" id="autotrade-save-btn" style="margin-top:8px;">Save trading limits</button>
+        <p style="font-size:11.5px; color:var(--ink-dim); margin-top:10px; line-height:1.5;">
+          Runs on our server, so it keeps working even if you close the app. Practice mode only — no real funds are ever placed automatically until live trading exists.
+        </p>
+      </div>
+      <div class="card">
+        <h2>Profit liquidation</h2>
+        <div class="settings-row"><span>Liquidation rate</span><span class="val" id="liq-rate-display">0%</span></div>
+        <input type="range" id="liq-slider" min="0" max="100" value="0" style="width:100%; margin:10px 0;">
+        <div class="settings-row"><span>Realized profit</span><span class="val" id="liq-total-profit">$0.00</span></div>
+        <div class="settings-row"><span>Liquidatable now</span><span class="val" id="liq-amount">$0.00</span></div>
+        <p style="font-size:11.5px; color:var(--ink-dim); margin-top:10px; line-height:1.5;">
+          This is the share of your profit you'd want converted to cash. Actual crypto→cash conversion still happens manually via Bybit's P2P desk — there's no automated bank transfer yet.
+        </p>
+      </div>
+      <div class="card">
+        <h2>Live trading <span id="live-status-badge" style="font-size:10px; color:var(--ink-dim); border:1px solid var(--line); padding:2px 7px; border-radius:10px;">Not connected</span></h2>
+        <div id="live-disconnected-view">
+          <p style="font-size:12px; color:var(--ink-dim); line-height:1.5; margin-bottom:12px;">
+            Connect your own Bybit account to trade with real funds. Your API key and secret are stored only on this device and are used to sign requests sent directly from your browser to Bybit — they are never sent to or stored on our server.
+          </p>
+          <p style="font-size:11.5px; color:var(--gold-dim); line-height:1.5; margin-bottom:12px;">
+            ⚠️ On Bybit, create a key with <b>Read + Trade</b> permission only. Never enable Withdrawal on this key.
+          </p>
+          <input type="text" id="bybit-key-input" placeholder="API Key" autocomplete="off"
+                 style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:11px; border-radius:8px; font-size:13px; margin-bottom:8px;">
+          <input type="password" id="bybit-secret-input" placeholder="API Secret" autocomplete="off"
+                 style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:11px; border-radius:8px; font-size:13px; margin-bottom:10px;">
+          <div id="live-connect-error" style="color:var(--down); font-size:11.5px; margin-bottom:8px; display:none;"></div>
+          <button class="trade-btn" id="live-connect-btn">Connect Bybit account</button>
+        </div>
+        <div id="live-connected-view" style="display:none;">
+          <div class="settings-row"><span>Status</span><span class="val" style="color:var(--up);">Connected</span></div>
+          <div class="settings-row"><span>Live Mode</span>
+            <label style="position:relative; display:inline-block; width:40px; height:22px;">
+              <input type="checkbox" id="live-mode-toggle" style="opacity:0; width:0; height:0;">
+              <span id="live-mode-toggle-track" style="position:absolute; inset:0; background:var(--panel-2); border:1px solid var(--line); border-radius:20px; cursor:pointer; transition:.2s;"></span>
+            </label>
+          </div>
+          <button class="copy-btn" id="live-disconnect-btn" style="margin-top:8px;">Disconnect account</button>
+          <p style="font-size:11px; color:var(--ink-dim); margin-top:10px; line-height:1.5;">
+            When Live Mode is on, signals on the Dashboard place real orders on your Bybit account. Autotrade always stays in practice mode — live autotrade doesn't exist yet.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Sync</h2>
+        <div class="settings-row"><span>Status</span><span class="val" id="sync-status">Idle</span></div>
+        <div class="settings-row"><span>Last synced</span><span class="val" id="sync-last">Never</span></div>
+        <button class="trade-btn" id="sync-now-btn" style="margin-top:6px;">Sync now</button>
+        <button class="trade-btn" id="resync-btn" style="margin-top:8px;">Full resync from this device</button>
+        <p style="font-size:11px; color:var(--ink-dim); margin-top:8px; line-height:1.5;">
+          Only needed if another device shows missing history — pushes this device's complete local trade record to rebuild it server-side.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <div class="bottom-nav">
+    <button class="tab-btn active" data-tab="dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+      Dashboard
+    </button>
+    <button class="tab-btn" data-tab="trades">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>
+      Trades
+    </button>
+    <button class="tab-btn" data-tab="commission">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 10h4.5a1.5 1.5 0 010 3H9"/></svg>
+      Commission
+    </button>
+    <button class="tab-btn" data-tab="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.2a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.2a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.2a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.2a1.6 1.6 0 00-1.5 1z"/></svg>
+      Settings
+    </button>
+  </div>
+</div>
+
+<!-- Trade confirm modal -->
+<div class="modal-overlay" id="confirm-overlay">
+  <div class="modal-box">
+    <h3 id="confirm-title">Confirm trade</h3>
+    <p id="confirm-body"></p>
+    <div class="modal-actions">
+      <button class="confirm-cancel" id="confirm-cancel-btn">Cancel</button>
+      <button class="confirm-ok" id="confirm-ok-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — point this at your deployed Chinux-Trade backend (same one
+   the master app uses; the /api/client/* routes are public/client-token
+   gated, separate from the master's admin-token routes).
+===================================================================== */
+const API_BASE = 'https://chinuxtradebybit.bonto.run';
+
+/* =====================================================================
+   LOCAL STORE — IndexedDB. This is the pragmatic JS reimplementation of
+   the sync engine's client-side role: local-first reads/writes, an
+   outbox of unsynced changes, and a pull cursor. Not the Rust engine
+   itself (this ships in a browser) — see server-bybit.js comment above
+   the sync routes for why.
+===================================================================== */
+const DB_NAME = 'chinux_client_db';
+const DB_VERSION = 3;
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta', { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('trades')) d.createObjectStore('trades', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('commissions')) d.createObjectStore('commissions', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('outbox')) d.createObjectStore('outbox', { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('positions')) d.createObjectStore('positions', { keyPath: 'symbol' });
+      if (!d.objectStoreNames.contains('livePositions')) d.createObjectStore('livePositions', { keyPath: 'symbol' });
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbGet(store, key) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readonly').objectStore(store).get(key);
+    tx.onsuccess = () => resolve(tx.result);
+    tx.onerror = () => resolve(undefined);
+  });
+}
+function idbPut(store, value) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readwrite').objectStore(store).put(value);
+    tx.onsuccess = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  });
+}
+function idbAll(store) {
+  return new Promise((resolve) => {
+    const out = [];
+    const req = db.transaction(store, 'readonly').objectStore(store).openCursor();
+    req.onsuccess = (e) => {
+      const cur = e.target.result;
+      if (cur) { out.push(cur.value); cur.continue(); } else resolve(out);
+    };
+    req.onerror = () => resolve(out);
+  });
+}
+function idbDelete(store, key) {
+  return new Promise((resolve) => {
+    const tx = db.transaction(store, 'readwrite').objectStore(store).delete(key);
+    tx.onsuccess = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  });
+}
+
+/* =====================================================================
+   STATE
+===================================================================== */
+let clientId = null, clientToken = null, displayName = null;
+let lastSignals = {};
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+function showToast(msg) {
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+function apiFetch(path, opts = {}) {
+  opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+  if (clientToken) opts.headers['x-client-token'] = clientToken;
+  return fetch(API_BASE + path, opts).then(r => r.json());
+}
+
+/* =====================================================================
+   GATE — register / restore
+===================================================================== */
+async function initGate() {
+  const meta = await idbGet('meta', 'account');
+  if (meta && meta.clientId && meta.token) {
+    clientId = meta.clientId; clientToken = meta.token; displayName = meta.displayName;
+    enterApp();
+    return;
+  }
+  document.getElementById('gate').style.display = 'flex';
+}
+
+document.getElementById('register-btn').addEventListener('click', async () => {
+  const name = document.getElementById('display-name-input').value.trim();
+  if (!name) { document.getElementById('gate-status').textContent = 'Enter your name first.'; return; }
+  document.getElementById('gate-status').textContent = 'Creating account…';
+  try {
+    const res = await apiFetch('/api/client/register', { method: 'POST', body: JSON.stringify({ displayName: name }) });
+    if (!res.clientId) throw new Error('no clientId returned');
+    clientId = res.clientId; clientToken = res.token; displayName = name;
+    await idbPut('meta', { key: 'account', clientId, token: clientToken, displayName });
+    document.getElementById('token-display').textContent = clientToken;
+    document.getElementById('token-box').style.display = 'block';
+    document.getElementById('gate-status').textContent = 'Account created — save your recovery key below, then continue.';
+    document.getElementById('register-btn').textContent = 'Continue';
+    document.getElementById('register-btn').onclick = enterApp;
+  } catch (e) {
+    document.getElementById('gate-status').textContent = 'Could not reach the server. Check your connection and try again.';
+  }
+});
+
+document.getElementById('restore-link').addEventListener('click', () => {
+  document.getElementById('gate-create-view').style.display = 'none';
+  document.getElementById('gate-restore-view').style.display = 'block';
+  document.getElementById('gate-status').textContent = '';
+});
+document.getElementById('restore-cancel-link').addEventListener('click', () => {
+  document.getElementById('gate-restore-view').style.display = 'none';
+  document.getElementById('gate-create-view').style.display = 'block';
+  document.getElementById('gate-status').textContent = '';
+});
+document.getElementById('restore-submit-btn').addEventListener('click', () => {
+  const token = document.getElementById('restore-token-input').value.trim();
+  if (!token) { document.getElementById('gate-status').textContent = 'Paste your recovery key first.'; return; }
+  document.getElementById('gate-status').textContent = 'Restoring…';
+  clientToken = token;
+  apiFetch('/api/client/whoami').then(res => {
+    if (!res.clientId) { document.getElementById('gate-status').textContent = 'That recovery key was not recognized.'; clientToken = null; return; }
+    clientId = res.clientId; displayName = res.displayName;
+    idbPut('meta', { key: 'account', clientId, token: clientToken, displayName }).then(enterApp);
+  }).catch(() => {
+    document.getElementById('gate-status').textContent = 'Could not reach the server. Check your connection and try again.';
+    clientToken = null;
+  });
+});
+
+document.getElementById('copy-token-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('token-display').textContent);
+  showToast('Recovery key copied');
+});
+document.getElementById('show-token-btn').addEventListener('click', () => {
+  alert('Recovery key:\n\n' + clientToken);
+});
+
+function enterApp() {
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('settings-name').textContent = displayName || '—';
+  document.getElementById('settings-clientid').textContent = clientId || '—';
+  loadSignals();
+  loadCommissionRate();
+  refreshTradesUI();
+  refreshCommissionUI();
+  loadLiquidation();
+  loadAutotradeStatus();
+  initLiveUI();
+  initCandleChart();
+  loadCandleData(currentChartSymbol);
+  syncNow();
+  setInterval(loadSignals, 60 * 1000);
+  setInterval(syncNow, 2 * 60 * 1000);
+  setInterval(loadAutotradeStatus, 90 * 1000);
+  setInterval(() => loadCandleData(currentChartSymbol), 60 * 1000);
+}
+
+/* =====================================================================
+   NAV
+===================================================================== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* =====================================================================
+   NETWORK STATUS
+===================================================================== */
+function updateNetPill() {
+  const pill = document.getElementById('net-pill');
+  const label = document.getElementById('net-label');
+  if (navigator.onLine) { pill.classList.remove('offline'); label.textContent = 'Online'; }
+  else { pill.classList.add('offline'); label.textContent = 'Offline'; }
+}
+window.addEventListener('online', () => { updateNetPill(); syncNow(); });
+window.addEventListener('offline', updateNetPill);
+
+/* =====================================================================
+   SIGNALS
+===================================================================== */
+async function loadSignals() {
+  try {
+    const data = await apiFetch('/api/client/signal');
+    lastSignals = data;
+    renderSignals(data);
+  } catch (e) {
+    document.getElementById('signal-list').innerHTML = '<div class="empty">Signals unavailable right now.</div>';
+  }
+}
+function renderSignals(data) {
+  const wrap = document.getElementById('signal-list');
+  const symbols = Object.keys(data);
+  if (!symbols.length) { wrap.innerHTML = '<div class="empty">No signal data.</div>'; return; }
+  wrap.innerHTML = symbols.map(sym => {
+    const s = data[sym];
+    const cls = s.signal === 'BUY' ? 'buy' : s.signal === 'SELL' ? 'sell' : 'hold';
+    return `<div class="signal-row">
+      <div>
+        <div class="signal-sym">${sym.replace('USDT', '/USDT')}</div>
+        <div class="signal-reason">${s.reason || ''}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="signal-badge ${cls}">${s.signal}</span>
+        ${s.signal !== 'HOLD' ? `<button class="trade-btn" onclick="openConfirm('${sym}','${s.signal}',${s.price || 0})">Act on this</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* =====================================================================
+   CANDLESTICK CHART — uses Bybit's PUBLIC market-data endpoint directly
+   from the browser (no API key, no signing — this is public price data,
+   same as anyone sees on Bybit's own site). Separate from the signed
+   private endpoints used for live trading, so it works even for
+   visitors who haven't connected a Bybit account at all.
+   NOTE: this calls Bybit's live API directly from the browser. That
+   round-trip can only be exercised for real once this is deployed and
+   opened in an actual browser with internet access — it cannot be
+   verified from within this build environment.
+===================================================================== */
+let candleChart, candleSeries, currentChartSymbol = 'BTCUSDT';
+
+function initCandleChart() {
+  if (typeof LightweightCharts === 'undefined') {
+    document.getElementById('candle-chart-empty').style.display = 'block';
+    document.getElementById('candle-chart-empty').textContent = 'Chart library failed to load.';
+    return false;
+  }
+  const container = document.getElementById('candle-chart');
+  candleChart = LightweightCharts.createChart(container, {
+    width: container.clientWidth, height: 220,
+    layout: { background: { color: 'transparent' }, textColor: '#9AA1B4' },
+    grid: { vertLines: { color: '#1D2230' }, horzLines: { color: '#1D2230' } },
+    timeScale: { borderColor: '#232838' },
+    rightPriceScale: { borderColor: '#232838' },
+  });
+  candleSeries = candleChart.addCandlestickSeries({
+    upColor: '#3FBF7F', downColor: '#E5615B',
+    borderVisible: false, wickUpColor: '#3FBF7F', wickDownColor: '#E5615B'
+  });
+  window.addEventListener('resize', () => candleChart && candleChart.applyOptions({ width: container.clientWidth }));
+  return true;
+}
+
+async function loadCandleData(symbol) {
+  try {
+    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=15&limit=100`);
+    const json = await res.json();
+    const list = json.result?.list || [];
+    if (!list.length) throw new Error('empty candle data');
+    const candles = list.map(k => ({
+      time: Math.floor(Number(k[0]) / 1000),
+      open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4])
+    })).sort((a, b) => a.time - b.time);
+    if (!candleChart) { if (!initCandleChart()) return; }
+    candleSeries.setData(candles);
+    document.getElementById('candle-chart-empty').style.display = 'none';
+  } catch (e) {
+    document.getElementById('candle-chart-empty').style.display = 'block';
+    document.getElementById('candle-chart-empty').textContent = 'Chart unavailable — check your connection.';
+  }
+}
+
+document.querySelectorAll('#chart-symbol-tabs .chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#chart-symbol-tabs .chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentChartSymbol = btn.dataset.symbol;
+    loadCandleData(currentChartSymbol);
+  });
+});
+
+/* =====================================================================
+   ACTIVITY CHART — simple canvas bar chart of trades-per-day over the
+   last 14 days, built from local trade history. No external library
+   needed for something this simple.
+===================================================================== */
+async function renderActivityChart() {
+  const canvas = document.getElementById('activity-chart');
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const trades = await idbAll('trades');
+  if (!trades.length) {
+    document.getElementById('activity-chart-empty').style.display = 'block';
+    return;
+  }
+  document.getElementById('activity-chart-empty').style.display = 'none';
+
+  const days = 14;
+  const counts = new Array(days).fill(0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  for (const t of trades) {
+    const d = new Date(t.time); d.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - d) / 86400000);
+    if (diff >= 0 && diff < days) counts[days - 1 - diff]++;
+  }
+  const max = Math.max(...counts, 1);
+  const barW = w / days;
+  ctx.fillStyle = '#D8B26A';
+  counts.forEach((c, i) => {
+    const barH = (c / max) * (h - 20);
+    ctx.globalAlpha = c === 0 ? 0.15 : 1;
+    ctx.fillRect(i * barW + barW * 0.2, h - barH, barW * 0.6, barH || 2);
+  });
+  ctx.globalAlpha = 1;
+}
+
+/* =====================================================================
+   PRACTICE TRADING — tracks a real open position per symbol (weighted
+   average price), same shape as the master app's server-side autotrade
+   position tracking. A BUY opens/adds to a position (no realized P&L
+   yet); a SELL closes some or all of it and realizes P&L against the
+   average entry price. This is what makes the Balance/P&L stats and
+   per-trade P&L actually move instead of always reading zero.
+===================================================================== */
+let pendingTrade = null;
+
+async function openConfirm(symbol, signal, price) {
+  const modalBox = document.querySelector('.modal-box');
+  if (liveModeEnabled) {
+    modalBox.classList.add('live-warn');
+    pendingTrade = { symbol, side: signal, price, amountUsd: 25 };
+    document.getElementById('confirm-title').textContent = `⚠️ LIVE ${signal} ${symbol.replace('USDT', '/USDT')} — real funds`;
+    document.getElementById('confirm-body').textContent = signal === 'BUY'
+      ? `This places a REAL market order for $25 of ${symbol.replace('USDT', '')} on your Bybit account. This is not a simulation.`
+      : `This places a REAL market order to sell your entire ${symbol.replace('USDT', '')} holding on your Bybit account. This is not a simulation.`;
+    document.getElementById('confirm-overlay').classList.add('show');
+    return;
+  }
+  modalBox.classList.remove('live-warn');
+  if (signal === 'SELL') {
+    const pos = await idbGet('positions', symbol);
+    if (!pos || pos.qty <= 0) {
+      showToast(`No open ${symbol.replace('USDT', '/USDT')} position to sell`);
+      return;
+    }
+  }
+  pendingTrade = { symbol, side: signal, price, amountUsd: 25 };
+  document.getElementById('confirm-title').textContent = `${signal} ${symbol.replace('USDT', '/USDT')}`;
+  document.getElementById('confirm-body').textContent = signal === 'BUY'
+    ? `Practice buy of $25 at ~$${price.toFixed(2)}. This uses simulated funds — no real money moves.`
+    : `Practice sell of up to $25 worth at ~$${price.toFixed(2)}, closing part or all of your simulated position.`;
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+document.getElementById('confirm-cancel-btn').addEventListener('click', () => {
+  document.getElementById('confirm-overlay').classList.remove('show');
+  pendingTrade = null;
+});
+document.getElementById('confirm-ok-btn').addEventListener('click', async () => {
+  if (!pendingTrade) return;
+  document.getElementById('confirm-overlay').classList.remove('show');
+  if (liveModeEnabled) {
+    await executeLiveTrade(pendingTrade.symbol, pendingTrade.side);
+  } else {
+    await executeTrade(pendingTrade);
+  }
+  pendingTrade = null;
+});
+
+async function executeTrade({ symbol, side, price, amountUsd }) {
+  const pos = (await idbGet('positions', symbol)) || { symbol, qty: 0, avgPrice: 0 };
+  let pnl = 0;
+
+  if (side === 'BUY') {
+    const qty = amountUsd / price;
+    pos.avgPrice = pos.qty > 0 ? ((pos.avgPrice * pos.qty) + (price * qty)) / (pos.qty + qty) : price;
+    pos.qty += qty;
+  } else { // SELL
+    if (pos.qty <= 0) { showToast('No open position to sell'); return; }
+    const sellQty = Math.min(pos.qty, amountUsd / price);
+    pnl = (price - pos.avgPrice) * sellQty;
+    pos.qty -= sellQty;
+    if (pos.qty < 1e-9) pos.qty = 0;
+  }
+  await idbPut('positions', pos);
+  await recordTrade({ symbol, side, price, amountUsd, mode: 'practice', pnl });
+  showToast(pnl !== 0 ? `Trade recorded — ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} P&L` : 'Trade recorded');
+}
+
+async function recordTrade(trade) {
+  const id = uid();
+  const record = { id, ...trade, time: new Date().toISOString() };
+  await idbPut('trades', record);
+  await idbPut('outbox', { id, kind: 'trade', payload: trade, createdAt: record.time });
+  refreshTradesUI();
+  syncNow();
+}
+
+async function refreshTradesUI() {
+  const trades = (await idbAll('trades')).sort((a, b) => new Date(b.time) - new Date(a.time));
+  const list = document.getElementById('trade-list');
+  const balCard = document.getElementById('stat-balance');
+  const pnlCard = document.getElementById('stat-pnl');
+  const totalPnl = trades.reduce((s, t) => s + (t.pnl || 0), 0);
+  balCard.textContent = '$' + (1000 + totalPnl).toFixed(2); // starting practice balance of $1000
+  pnlCard.textContent = (totalPnl >= 0 ? '+' : '') + '$' + totalPnl.toFixed(2);
+  pnlCard.className = 'value ' + (totalPnl >= 0 ? 'up' : 'down');
+  renderActivityChart();
+  if (!trades.length) { list.innerHTML = '<div class="empty">No trades yet — act on a signal from Dashboard.</div>'; return; }
+  list.innerHTML = trades.map(t => `
+    <div class="trade-list-item">
+      <div>
+        <div>${t.side} ${t.symbol.replace('USDT', '/USDT')}</div>
+        <div class="trade-meta">${t.mode} · ${new Date(t.time).toLocaleString()}</div>
+      </div>
+      <div class="pnl ${t.pnl >= 0 ? 'up' : 'down'}">${t.pnl ? (t.pnl >= 0 ? '+' : '') + '$' + t.pnl.toFixed(2) : '—'}</div>
+    </div>`).join('');
+}
+
+/* =====================================================================
+   COMMISSION
+===================================================================== */
+async function loadCommissionRate() {
+  try {
+    const res = await apiFetch('/api/client/commission-rate');
+    document.getElementById('stat-rate').textContent = (res.commissionPct || 0) + '%';
+  } catch (e) { /* leave placeholder */ }
+}
+async function refreshCommissionUI() {
+  try {
+    const res = await apiFetch('/api/client/commissions');
+    document.getElementById('stat-comm-total').textContent = '$' + (res.total || 0).toFixed(2);
+    const list = document.getElementById('commission-list');
+    if (!res.entries || !res.entries.length) { list.innerHTML = '<div class="empty">No commission recorded yet.</div>'; return; }
+    list.innerHTML = res.entries.slice().reverse().map(e => `
+      <div class="trade-list-item">
+        <div>
+          <div>${e.pct}% of $${e.fromPnl.toFixed(2)} profit</div>
+          <div class="trade-meta">${new Date(e.time).toLocaleString()}</div>
+        </div>
+        <div class="pnl up">$${e.amount.toFixed(2)}</div>
+      </div>`).join('');
+  } catch (e) { /* offline — leave cached UI */ }
+}
+
+/* =====================================================================
+   SYNC — push outbox, then pull anything new (e.g. from another device)
+===================================================================== */
+async function syncNow() {
+  if (!navigator.onLine || !clientToken) return;
+  document.getElementById('sync-status') && (document.getElementById('sync-status').textContent = 'Syncing…');
+  try {
+    const outbox = await idbAll('outbox');
+    if (outbox.length) {
+      const changes = outbox.map(o => ({ id: o.id, kind: o.kind, payload: o.payload, createdAt: o.createdAt }));
+      const res = await apiFetch('/api/client/sync/push', { method: 'POST', body: JSON.stringify({ changes }) });
+      if (res.ok) {
+        for (const o of outbox) await idbDelete('outbox', o.id);
+      }
+    }
+    const cursorMeta = (await idbGet('meta', 'syncCursor')) || { key: 'syncCursor', seq: 0 };
+    const pullRes = await apiFetch('/api/client/sync/pull?since=' + cursorMeta.seq);
+    if (pullRes.changes && pullRes.changes.length) {
+      for (const c of pullRes.changes) {
+        if (c.kind === 'trade') await idbPut('trades', { id: c.id, ...c.payload, time: c.createdAt });
+      }
+      await idbPut('meta', { key: 'syncCursor', seq: pullRes.seq });
+      refreshTradesUI();
+    }
+    if (document.getElementById('sync-status')) {
+      document.getElementById('sync-status').textContent = 'Up to date';
+      document.getElementById('sync-last').textContent = new Date().toLocaleTimeString();
+    }
+  } catch (e) {
+    if (document.getElementById('sync-status')) document.getElementById('sync-status').textContent = 'Sync failed — will retry';
+  }
+}
+document.getElementById('sync-now-btn').addEventListener('click', syncNow);
+
+/* =====================================================================
+   PROFIT LIQUIDATION
+===================================================================== */
+async function loadLiquidation() {
+  try {
+    const res = await apiFetch('/api/client/liquidation');
+    document.getElementById('liq-slider').value = res.liquidationPct;
+    document.getElementById('liq-rate-display').textContent = res.liquidationPct + '%';
+    document.getElementById('liq-total-profit').textContent = '$' + res.totalProfit.toFixed(2);
+    document.getElementById('liq-amount').textContent = '$' + res.liquidatable.toFixed(2);
+  } catch (e) { /* offline — leave last-known values on screen */ }
+}
+let liqDebounce;
+document.getElementById('liq-slider').addEventListener('input', (e) => {
+  document.getElementById('liq-rate-display').textContent = e.target.value + '%';
+  clearTimeout(liqDebounce);
+  liqDebounce = setTimeout(async () => {
+    try {
+      await apiFetch('/api/client/liquidation', { method: 'POST', body: JSON.stringify({ liquidationPct: Number(e.target.value) }) });
+      loadLiquidation();
+    } catch (err) { showToast('Could not save — check connection'); }
+  }, 500);
+});
+
+/* =====================================================================
+   AUTOTRADE (practice only — server-resident, see server-bybit.js)
+===================================================================== */
+async function loadAutotradeStatus() {
+  try {
+    const res = await apiFetch('/api/client/autotrade/status');
+    document.getElementById('autotrade-toggle').checked = !!res.settings.enabled;
+    document.getElementById('autotrade-min').value = res.settings.minTrade;
+    document.getElementById('autotrade-max').value = res.settings.maxTrade;
+    document.getElementById('autotrade-loss-limit').value = res.settings.dailyLossLimit;
+    document.getElementById('autotrade-loss-used').textContent = '$' + (res.state.dailyLossUsed || 0).toFixed(2);
+    refreshTradesUI(); // autotrade may have added trades server-side since last sync
+  } catch (e) { /* offline — leave last-known state */ }
+}
+document.getElementById('autotrade-toggle').addEventListener('change', async (e) => {
+  const enabled = e.target.checked;
+  try {
+    // Only the enabled flag changes here — omitting min/max/loss-limit
+    // means the server keeps whatever the client already had saved,
+    // rather than silently resetting custom limits back to defaults
+    // every time someone flips the switch.
+    await apiFetch('/api/client/autotrade/toggle', { method: 'POST', body: JSON.stringify({ enabled }) });
+    showToast(enabled ? 'Autotrade enabled (practice)' : 'Autotrade paused');
+  } catch (err) {
+    e.target.checked = !enabled; // revert the toggle if the request failed
+    showToast('Could not reach server — try again');
+  }
+});
+
+document.getElementById('autotrade-save-btn').addEventListener('click', async () => {
+  const errEl = document.getElementById('autotrade-error');
+  errEl.style.display = 'none';
+  const min = Number(document.getElementById('autotrade-min').value);
+  const max = Number(document.getElementById('autotrade-max').value);
+  const lossLimit = Number(document.getElementById('autotrade-loss-limit').value);
+
+  if (!min || !max || !lossLimit || min <= 0 || max <= 0 || lossLimit <= 0) {
+    errEl.textContent = 'All values must be greater than $0.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (min > max) {
+    errEl.textContent = 'Min trade size can\'t be greater than max trade size.';
+    errEl.style.display = 'block';
+    return;
+  }
+  try {
+    await apiFetch('/api/client/autotrade/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ enabled: document.getElementById('autotrade-toggle').checked, minTrade: min, maxTrade: max, dailyLossLimit: lossLimit })
+    });
+    showToast('Trading limits saved');
+  } catch (err) {
+    errEl.textContent = 'Could not save — check your connection and try again.';
+    errEl.style.display = 'block';
+  }
+});
+
+/* =====================================================================
+   FULL RESYNC — pushes every locally-known trade so the server can
+   rebuild this client's history if it was ever wiped (see /api/client/
+   sync/resync on the backend). Safe to run any time; it only adds
+   trades the server doesn't already have.
+===================================================================== */
+document.getElementById('resync-btn').addEventListener('click', async () => {
+  if (!navigator.onLine) { showToast('Connect to the internet first'); return; }
+  try {
+    const trades = await idbAll('trades');
+    const res = await apiFetch('/api/client/sync/resync', { method: 'POST', body: JSON.stringify({ trades }) });
+    showToast(res.added ? `Resync complete — ${res.added} trade(s) restored server-side` : 'Resync complete — server already had everything');
+  } catch (e) {
+    showToast('Resync failed — check connection and try again');
+  }
+});
+
+/* =====================================================================
+   LIVE TRADING — connects the client's OWN Bybit account. The API key
+   and secret are stored ONLY in this browser's IndexedDB and are used
+   to sign requests sent directly from the browser straight to Bybit —
+   they are never transmitted to or stored on the Chinux server. This
+   mirrors the master app's own security posture: the key should be
+   created with Read + Trade permission only, never Withdrawal.
+   PnL here uses the same weighted-average-cost tracking as practice
+   mode, kept in a separate 'livePositions' store — accurate as long as
+   trading in a given asset happens through this app; trades placed
+   directly on Bybit outside the app aren't reflected in the cost basis.
+===================================================================== */
+const BYBIT_LIVE_BASE = 'https://api.bybit.com';
+const RECV_WINDOW = '5000';
+let liveModeEnabled = false;
+
+async function hmacSha256Hex(secret, message) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function getBybitKey() {
+  const rec = await idbGet('meta', 'bybitKey');
+  return rec ? { apiKey: rec.apiKey, apiSecret: rec.apiSecret } : null;
+}
+
+// Bybit v5 signing: HMAC(secret, timestamp + apiKey + recvWindow + payload)
+// — identical scheme to the one server-bybit.js already uses for the
+// master app, just computed in-browser with Web Crypto instead of Node's
+// crypto module.
+async function bybitSignedGet(path, params = {}) {
+  const cred = await getBybitKey();
+  if (!cred) throw new Error('Bybit account not connected');
+  const timestamp = Date.now().toString();
+  const query = new URLSearchParams(params).toString();
+  const sign = await hmacSha256Hex(cred.apiSecret, timestamp + cred.apiKey + RECV_WINDOW + query);
+  const res = await fetch(`${BYBIT_LIVE_BASE}${path}?${query}`, {
+    headers: {
+      'X-BAPI-API-KEY': cred.apiKey, 'X-BAPI-TIMESTAMP': timestamp,
+      'X-BAPI-RECV-WINDOW': RECV_WINDOW, 'X-BAPI-SIGN': sign
+    }
+  });
+  return res.json();
+}
+async function bybitSignedPost(path, body = {}) {
+  const cred = await getBybitKey();
+  if (!cred) throw new Error('Bybit account not connected');
+  const timestamp = Date.now().toString();
+  const bodyString = JSON.stringify(body);
+  const sign = await hmacSha256Hex(cred.apiSecret, timestamp + cred.apiKey + RECV_WINDOW + bodyString);
+  const res = await fetch(`${BYBIT_LIVE_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'X-BAPI-API-KEY': cred.apiKey, 'X-BAPI-TIMESTAMP': timestamp,
+      'X-BAPI-RECV-WINDOW': RECV_WINDOW, 'X-BAPI-SIGN': sign, 'Content-Type': 'application/json'
+    },
+    body: bodyString
+  });
+  return res.json();
+}
+
+async function initLiveUI() {
+  const cred = await getBybitKey();
+  if (cred) {
+    document.getElementById('live-disconnected-view').style.display = 'none';
+    document.getElementById('live-connected-view').style.display = 'block';
+    document.getElementById('live-status-badge').textContent = 'Connected';
+    document.getElementById('live-status-badge').style.color = 'var(--up)';
+    const liveMeta = (await idbGet('meta', 'liveModeEnabled'));
+    liveModeEnabled = !!(liveMeta && liveMeta.value);
+    document.getElementById('live-mode-toggle').checked = liveModeEnabled;
+    applyLiveModeUI();
+    if (liveModeEnabled) loadLiveBalance();
+  }
+}
+
+document.getElementById('live-connect-btn').addEventListener('click', async () => {
+  const errEl = document.getElementById('live-connect-error');
+  errEl.style.display = 'none';
+  const apiKey = document.getElementById('bybit-key-input').value.trim();
+  const apiSecret = document.getElementById('bybit-secret-input').value.trim();
+  if (!apiKey || !apiSecret) {
+    errEl.textContent = 'Enter both your API key and secret.';
+    errEl.style.display = 'block';
+    return;
+  }
+  document.getElementById('live-connect-btn').textContent = 'Verifying…';
+  try {
+    // Save first so bybitSignedGet can pick it up, verify with a real
+    // balance call, and roll back if the key doesn't actually work.
+    await idbPut('meta', { key: 'bybitKey', apiKey, apiSecret });
+    const res = await bybitSignedGet('/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+    if (res.retCode !== 0) {
+      await idbDelete('meta', 'bybitKey');
+      errEl.textContent = 'Bybit rejected this key: ' + (res.retMsg || 'unknown error');
+      errEl.style.display = 'block';
+      document.getElementById('live-connect-btn').textContent = 'Connect Bybit account';
+      return;
+    }
+    showToast('Bybit account connected');
+    initLiveUI();
+  } catch (e) {
+    await idbDelete('meta', 'bybitKey');
+    errEl.textContent = 'Could not verify this key — check it and your connection, then try again.';
+    errEl.style.display = 'block';
+  }
+  document.getElementById('live-connect-btn').textContent = 'Connect Bybit account';
+});
+
+document.getElementById('live-disconnect-btn').addEventListener('click', async () => {
+  if (!confirm('Disconnect your Bybit account? Live Mode will turn off.')) return;
+  await idbDelete('meta', 'bybitKey');
+  await idbPut('meta', { key: 'liveModeEnabled', value: false });
+  liveModeEnabled = false;
+  document.getElementById('live-connected-view').style.display = 'none';
+  document.getElementById('live-disconnected-view').style.display = 'block';
+  document.getElementById('live-status-badge').textContent = 'Not connected';
+  document.getElementById('live-status-badge').style.color = 'var(--ink-dim)';
+  applyLiveModeUI();
+  showToast('Bybit account disconnected');
+});
+
+document.getElementById('live-mode-toggle').addEventListener('change', async (e) => {
+  liveModeEnabled = e.target.checked;
+  await idbPut('meta', { key: 'liveModeEnabled', value: liveModeEnabled });
+  applyLiveModeUI();
+  if (liveModeEnabled) loadLiveBalance();
+});
+
+function applyLiveModeUI() {
+  document.getElementById('live-mode-banner').style.display = liveModeEnabled ? 'block' : 'none';
+  document.getElementById('live-balance-card').style.display = liveModeEnabled ? 'block' : 'none';
+}
+
+async function loadLiveBalance() {
+  try {
+    const res = await bybitSignedGet('/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+    const usdt = res.result?.list?.[0]?.coin?.find(c => c.coin === 'USDT');
+    document.getElementById('live-balance').textContent = '$' + (usdt ? parseFloat(usdt.walletBalance).toFixed(2) : '0.00');
+  } catch (e) {
+    document.getElementById('live-balance').textContent = 'Unavailable';
+  }
+}
+
+// Places a REAL market order on the client's own Bybit account. BUY
+// spends a fixed $25 in USDT (quoteCoin unit, so no quantity/precision
+// math needed). SELL liquidates the client's entire current holding of
+// that asset (baseCoin unit) — a full close rather than a partial sell,
+// which avoids needing per-symbol quantity-precision handling for v1.
+async function executeLiveTrade(symbol, side) {
+  try {
+    let order;
+    if (side === 'BUY') {
+      order = await bybitSignedPost('/v5/order/create', {
+        category: 'spot', symbol, side: 'Buy', orderType: 'Market',
+        qty: '25', marketUnit: 'quoteCoin'
+      });
+    } else {
+      const bal = await bybitSignedGet('/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+      const coin = symbol.replace('USDT', '');
+      const holding = bal.result?.list?.[0]?.coin?.find(c => c.coin === coin);
+      const qty = holding ? parseFloat(holding.walletBalance) : 0;
+      if (!qty || qty <= 0) { showToast(`No ${coin} balance on Bybit to sell`); return; }
+      order = await bybitSignedPost('/v5/order/create', {
+        category: 'spot', symbol, side: 'Sell', orderType: 'Market',
+        qty: String(qty), marketUnit: 'baseCoin'
+      });
+    }
+    if (order.retCode !== 0) {
+      showToast('Bybit rejected the order: ' + (order.retMsg || 'unknown error'));
+      return;
+    }
+
+    // Record it using the same tested position/PnL math as practice mode.
+    const signalPrice = lastSignals[symbol]?.price || 0;
+    const pos = (await idbGet('livePositions', symbol)) || { symbol, qty: 0, avgPrice: 0 };
+    let pnl = 0;
+    if (side === 'BUY') {
+      const qty = 25 / signalPrice;
+      pos.avgPrice = pos.qty > 0 ? ((pos.avgPrice * pos.qty) + (signalPrice * qty)) / (pos.qty + qty) : signalPrice;
+      pos.qty += qty;
+    } else {
+      pnl = (signalPrice - pos.avgPrice) * pos.qty;
+      pos.qty = 0;
+    }
+    await idbPut('livePositions', pos);
+    await recordTrade({ symbol, side, price: signalPrice, amountUsd: 25, mode: 'live', pnl });
+    loadLiveBalance();
+    showToast(`Live ${side} placed on Bybit` + (pnl ? ` — ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} P&L` : ''));
+  } catch (e) {
+    showToast('Live trade failed — check your connection and try again');
+  }
+}
+
+/* =====================================================================
+   BOOT
+===================================================================== */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+updateNetPill();
+openDB().then(initGate);
+</script>
+</body>
+</html>
