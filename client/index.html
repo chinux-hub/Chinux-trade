@@ -40,7 +40,8 @@
   .gate-token-box strong{color:var(--ink); display:block; margin-bottom:4px;}
   /* ---- Header ---- */
   header{position:sticky; top:0; background:rgba(11,13,18,.9); backdrop-filter:blur(10px); z-index:10; padding:16px 18px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line);}
-  .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px;}
+  .brand{display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; background:none; border:none; color:var(--ink); padding:6px 4px; margin:-6px -4px; cursor:pointer; border-radius:8px; transition:background .15s; font-family:inherit;}
+  .brand:active{background:var(--panel-2);}
   .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--gold);}
   .net-pill{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-dim); background:var(--panel-2); padding:5px 10px; border-radius:20px; border:1px solid var(--line);}
   .net-pill .dot{width:6px; height:6px; border-radius:50%; background:var(--up);}
@@ -144,7 +145,7 @@
 <!-- ================= APP ================= -->
 <div class="app" id="app" style="display:none;">
   <header>
-    <div class="brand"><span class="dot"></span><span>Chinux-Trade</span></div>
+    <button class="brand" id="brand-btn"><span class="dot"></span><span>Chinux-Trade</span></button>
     <div class="net-pill" id="net-pill"><span class="dot"></span><span id="net-label">Online</span></div>
   </header>
 
@@ -198,8 +199,25 @@
       </div>
     </div>
 
-    <!-- Commission -->
-    <div class="tab" id="tab-commission">
+    <!-- Feedback -->
+    <div class="tab" id="tab-feedback">
+      <div class="card">
+        <h2>Send feedback</h2>
+        <p style="font-size:12px; color:var(--ink-dim); margin-bottom:10px; line-height:1.5;">
+          Found a bug, or have an idea? Send it directly — the team reads and replies to every message here.
+        </p>
+        <textarea id="feedback-input" placeholder="Tell us what's on your mind…" rows="4"
+                  style="width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:12px; border-radius:10px; font-size:13px; font-family:inherit; resize:vertical; margin-bottom:10px;"></textarea>
+        <button class="trade-btn" id="feedback-submit-btn">Send feedback</button>
+      </div>
+      <div class="card">
+        <h2>Your feedback history</h2>
+        <div id="feedback-list"><div class="empty">You haven't sent any feedback yet.</div></div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="tab" id="tab-settings">
       <div class="card">
         <h2>Commission</h2>
         <div class="stat-grid">
@@ -207,17 +225,10 @@
           <div class="stat"><div class="label">Paid to date</div><div class="value" id="stat-comm-total">$0.00</div></div>
         </div>
         <p style="font-size:11.5px; color:var(--ink-dim); margin-top:14px; line-height:1.5;">
-          Commission accrues automatically on profitable trades made in Live mode, at the rate set above. Practice trades never generate commission.
+          Commission accrues automatically on profitable trades made in Live mode, at the rate set by the platform. Practice trades never generate commission.
         </p>
+        <div id="commission-list" style="margin-top:10px;"><div class="empty">No commission recorded yet.</div></div>
       </div>
-      <div class="card">
-        <h2>Commission history</h2>
-        <div id="commission-list"><div class="empty">No commission recorded yet.</div></div>
-      </div>
-    </div>
-
-    <!-- Settings -->
-    <div class="tab" id="tab-settings">
       <div class="card">
         <h2>Account</h2>
         <div class="settings-row"><span>Name</span><span class="val" id="settings-name">—</span></div>
@@ -333,14 +344,34 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h6"/></svg>
       Trades
     </button>
-    <button class="tab-btn" data-tab="commission">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9 10h4.5a1.5 1.5 0 010 3H9"/></svg>
-      Commission
+    <button class="tab-btn" data-tab="feedback">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+      Feedback
     </button>
     <button class="tab-btn" data-tab="settings">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-1.8-.3 1.6 1.6 0 00-1 1.5V21a2 2 0 11-4 0v-.2a1.6 1.6 0 00-1-1.5 1.6 1.6 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.6 1.6 0 00.3-1.8 1.6 1.6 0 00-1.5-1H3a2 2 0 110-4h.2a1.6 1.6 0 001.5-1 1.6 1.6 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.6 1.6 0 001.8.3H9a1.6 1.6 0 001-1.5V3a2 2 0 114 0v.2a1.6 1.6 0 001 1.5 1.6 1.6 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.6 1.6 0 00-.3 1.8V9a1.6 1.6 0 001.5 1H21a2 2 0 110 4h-.2a1.6 1.6 0 00-1.5 1z"/></svg>
       Settings
     </button>
+  </div>
+</div>
+
+<!-- Brand info drawer -->
+<div class="modal-overlay" id="info-drawer-overlay">
+  <div class="modal-box" style="text-align:left;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+      <div style="width:40px; height:40px; border-radius:50%; background:conic-gradient(from 220deg, var(--gold), #7A5F2E, var(--gold)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; color:#14100A; flex-shrink:0;">CX</div>
+      <div>
+        <div style="font-weight:700; font-size:15px;">Chinux-Trade</div>
+        <div style="font-size:11px; color:var(--ink-dim);">Signal-driven trading, made simple</div>
+      </div>
+    </div>
+    <p style="font-size:12.5px; color:var(--ink-dim); line-height:1.6; margin-bottom:16px;">
+      Follow live market signals, practice risk-free, or trade live on your own Bybit account — all synced across every device you sign in on.
+    </p>
+    <div class="settings-row"><span>Version</span><span class="val">1.0</span></div>
+    <div class="settings-row"><span>Send feedback</span><button class="copy-btn" id="drawer-feedback-btn">Open</button></div>
+    <div class="settings-row"><span>Support</span><span class="val">via Feedback tab</span></div>
+    <button class="trade-btn" id="info-drawer-close-btn" style="margin-top:16px;">Close</button>
   </div>
 </div>
 
@@ -523,8 +554,8 @@ function enterApp() {
   refreshCommissionUI();
   loadLiquidation();
   loadAutotradeStatus();
+  loadFeedback();
   initLiveUI();
-  initCandleChart();
   loadCandleData(currentChartSymbol);
   syncNow();
   setInterval(loadSignals, 60 * 1000);
@@ -602,10 +633,36 @@ function renderSignals(data) {
 ===================================================================== */
 let candleChart, candleSeries, currentChartSymbol = 'BTCUSDT';
 
-function initCandleChart() {
-  if (typeof LightweightCharts === 'undefined') {
+let chartLibraryFallbackTried = false;
+function loadChartLibraryFallback() {
+  return new Promise((resolve) => {
+    if (typeof LightweightCharts !== 'undefined') { resolve(true); return; }
+    const s = document.createElement('script');
+    // A different CDN provider than the one in <head> — if jsDelivr
+    // specifically is the thing failing on a given network, cdnjs (a
+    // different global network) has a real chance of succeeding where
+    // it didn't.
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/4.1.3/lightweight-charts.standalone.production.js';
+    s.onload = () => resolve(typeof LightweightCharts !== 'undefined');
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+    setTimeout(() => resolve(typeof LightweightCharts !== 'undefined'), 6000);
+  });
+}
+
+async function initCandleChart() {
+  if (typeof LightweightCharts === 'undefined' && !chartLibraryFallbackTried) {
+    chartLibraryFallbackTried = true;
     document.getElementById('candle-chart-empty').style.display = 'block';
-    document.getElementById('candle-chart-empty').textContent = 'Chart library failed to load.';
+    document.getElementById('candle-chart-empty').textContent = 'Loading chart…';
+    const loaded = await loadChartLibraryFallback();
+    if (!loaded) {
+      document.getElementById('candle-chart-empty').textContent = 'Chart library failed to load on this connection.';
+      return false;
+    }
+  } else if (typeof LightweightCharts === 'undefined') {
+    document.getElementById('candle-chart-empty').style.display = 'block';
+    document.getElementById('candle-chart-empty').textContent = 'Chart library failed to load on this connection.';
     return false;
   }
   const container = document.getElementById('candle-chart');
@@ -624,9 +681,14 @@ function initCandleChart() {
   return true;
 }
 
-async function loadCandleData(symbol) {
+async function loadCandleData(symbol, attempt = 1) {
+  const MAX_ATTEMPTS = 3;
   try {
-    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=15&limit=100`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // generous timeout for slower connections
+    const res = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${symbol}&interval=15&limit=100`,
+      { signal: controller.signal });
+    clearTimeout(timeoutId);
     const json = await res.json();
     const list = json.result?.list || [];
     if (!list.length) throw new Error('empty candle data');
@@ -634,12 +696,20 @@ async function loadCandleData(symbol) {
       time: Math.floor(Number(k[0]) / 1000),
       open: parseFloat(k[1]), high: parseFloat(k[2]), low: parseFloat(k[3]), close: parseFloat(k[4])
     })).sort((a, b) => a.time - b.time);
-    if (!candleChart) { if (!initCandleChart()) return; }
+    if (!candleChart) { const ok = await initCandleChart(); if (!ok) return; }
     candleSeries.setData(candles);
     document.getElementById('candle-chart-empty').style.display = 'none';
   } catch (e) {
+    if (attempt < MAX_ATTEMPTS) {
+      // Slower/less reliable connections get a couple of quiet retries
+      // before showing an error — a single timeout shouldn't be the
+      // final word on a borderline connection.
+      setTimeout(() => loadCandleData(symbol, attempt + 1), 1500);
+      return;
+    }
     document.getElementById('candle-chart-empty').style.display = 'block';
-    document.getElementById('candle-chart-empty').textContent = 'Chart unavailable — check your connection.';
+    document.getElementById('candle-chart-empty').textContent =
+      'Chart unavailable on this connection — price data or the chart library couldn\u2019t load after several attempts.';
   }
 }
 
@@ -947,6 +1017,59 @@ document.getElementById('resync-btn').addEventListener('click', async () => {
     showToast(res.added ? `Resync complete — ${res.added} trade(s) restored server-side` : 'Resync complete — server already had everything');
   } catch (e) {
     showToast('Resync failed — check connection and try again');
+  }
+});
+
+/* =====================================================================
+   BRAND INFO DRAWER
+===================================================================== */
+document.getElementById('brand-btn').addEventListener('click', () => {
+  document.getElementById('info-drawer-overlay').classList.add('show');
+});
+document.getElementById('info-drawer-close-btn').addEventListener('click', () => {
+  document.getElementById('info-drawer-overlay').classList.remove('show');
+});
+document.getElementById('drawer-feedback-btn').addEventListener('click', () => {
+  document.getElementById('info-drawer-overlay').classList.remove('show');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="feedback"]').classList.add('active');
+  document.getElementById('tab-feedback').classList.add('active');
+});
+
+/* =====================================================================
+   FEEDBACK
+===================================================================== */
+async function loadFeedback() {
+  try {
+    const items = await apiFetch('/api/client/feedback');
+    const list = document.getElementById('feedback-list');
+    if (!items.length) { list.innerHTML = '<div class="empty">You haven\'t sent any feedback yet.</div>'; return; }
+    list.innerHTML = items.map(f => `
+      <div class="trade-list-item" style="flex-direction:column; align-items:flex-start; gap:6px;">
+        <div style="display:flex; justify-content:space-between; width:100%;">
+          <span style="font-size:11px; color:var(--ink-dim);">${new Date(f.createdAt).toLocaleString()}</span>
+          <span class="signal-badge ${f.status === 'replied' ? 'buy' : 'hold'}">${f.status}</span>
+        </div>
+        <div style="font-size:13px;">${f.message}</div>
+        ${f.reply ? `<div style="background:var(--panel-2); border-radius:8px; padding:10px; margin-top:4px; width:100%;">
+          <div style="font-size:10.5px; color:var(--gold-dim); font-weight:700; margin-bottom:3px;">TEAM REPLY</div>
+          <div style="font-size:12.5px;">${f.reply.text}</div>
+        </div>` : ''}
+      </div>`).join('');
+  } catch (e) { /* offline — leave cached list */ }
+}
+document.getElementById('feedback-submit-btn').addEventListener('click', async () => {
+  const input = document.getElementById('feedback-input');
+  const message = input.value.trim();
+  if (!message) { showToast('Write something first'); return; }
+  try {
+    await apiFetch('/api/client/feedback', { method: 'POST', body: JSON.stringify({ message }) });
+    input.value = '';
+    showToast('Feedback sent — thank you');
+    loadFeedback();
+  } catch (e) {
+    showToast('Could not send — check your connection and try again');
   }
 });
 
