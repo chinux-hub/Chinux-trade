@@ -29,6 +29,17 @@
   .app{max-width:520px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; background:var(--bg);}
   /* ---- Gate ---- */
   .gate{position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center;}
+  .landing{position:fixed; inset:0; background:var(--bg); z-index:190; overflow-y:auto; padding:36px 22px 40px;}
+  .landing-hero{max-width:420px; margin:0 auto; text-align:center;}
+  .landing-title{font-size:24px; font-weight:800; line-height:1.3; margin-bottom:12px;}
+  .landing-sub{font-size:13.5px; color:var(--ink-dim); line-height:1.6; margin-bottom:24px;}
+  .landing-section{max-width:420px; margin:0 auto; margin-top:34px;}
+  .landing-step{display:flex; gap:14px; margin-bottom:20px; text-align:left;}
+  .landing-step-num{flex-shrink:0; width:28px; height:28px; border-radius:50%; background:var(--panel-2); border:1px solid var(--gold-dim); color:var(--gold); font-weight:700; font-size:12.5px; display:flex; align-items:center; justify-content:center;}
+  .landing-step-title{font-weight:700; font-size:13.5px; margin-bottom:3px;}
+  .landing-step-body{font-size:12px; color:var(--ink-dim); line-height:1.5;}
+  .trust-row{display:flex; gap:10px; align-items:flex-start; font-size:12.5px; color:var(--ink-dim); line-height:1.5; margin-bottom:12px;}
+  .trust-icon{flex-shrink:0; font-size:15px;}
   .gate-logo{width:76px; height:76px; border-radius:50%; background:conic-gradient(from 220deg, var(--gold), #7A5F2E, var(--gold)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:22px; color:#14100A; margin-bottom:20px;}
   .gate h1{font-size:20px; margin-bottom:6px;}
   .gate p{color:var(--ink-dim); font-size:13px; margin-bottom:24px; max-width:320px;}
@@ -109,14 +120,116 @@
   .modal-actions button{flex:1; padding:11px; border-radius:8px; border:none; font-weight:600; font-size:13px; cursor:pointer;}
   .confirm-cancel{background:var(--panel-2); color:var(--ink);}
   .confirm-ok{background:var(--gold); color:#14100A;}
+
+  /* ==================================================================
+     RESPONSIVE — mobile is the default (unchanged above). Tablet gets
+     breathing room without changing structure. Desktop switches the
+     bottom tab bar into a left sidebar, since a phone-style bottom nav
+     stretched across a wide screen looks — and is — the wrong pattern
+     for that context (per current mobile-fintech UX conventions:
+     bottom nav for thumb-reach on phones, side nav once there's room
+     and a mouse/trackpad instead of a thumb).
+  ================================================================== */
+  @media (min-width: 700px) {
+    .app{max-width:680px;}
+    .card{padding:22px;}
+  }
+
+  @media (min-width: 1024px) {
+    body{padding-left:220px;}
+    .app{max-width:900px; margin:0 auto;}
+    .bottom-nav{
+      top:0; bottom:0; left:0; right:auto; width:220px; max-width:220px;
+      flex-direction:column; align-items:stretch; justify-content:flex-start;
+      border-top:none; border-right:1px solid var(--line); padding-top:22px; gap:2px;
+    }
+    .tab-btn{
+      flex:none; flex-direction:row; justify-content:flex-start; align-items:center;
+      gap:12px; padding:13px 20px; font-size:13px; border-top:none;
+      border-left:2px solid transparent; text-align:left;
+    }
+    .tab-btn.active{border-top-color:transparent; border-left-color:var(--gold);}
+    .tab-btn svg{width:19px; height:19px; flex-shrink:0;}
+    main{padding-bottom:24px;}
+    .dashboard-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;}
+    .dashboard-grid .card{margin-bottom:0;}
+    .dashboard-grid .span-2{grid-column:1 / -1;}
+  }
 </style>
 </head>
 <body>
 
 <div id="toast-wrap"></div>
 
+<!-- ================= LANDING (first visit only) ================= -->
+<div class="landing" id="landing" style="display:none;">
+  <div class="landing-hero">
+    <div class="gate-logo" style="margin-bottom:22px;">CX</div>
+    <h1 class="landing-title">Trade with live signals guiding every move</h1>
+    <p class="landing-sub">Follow real-time market signals, practice completely risk-free, or trade live on your own Bybit account — synced across every device you use.</p>
+    <button class="gate-btn" id="landing-get-started-btn" style="max-width:280px; margin:0 auto;">Get started</button>
+    <button class="gate-link" id="landing-existing-btn">I already have an account</button>
+  </div>
+
+  <div class="landing-section">
+    <div class="landing-step">
+      <div class="landing-step-num">1</div>
+      <div>
+        <div class="landing-step-title">Create your account</div>
+        <div class="landing-step-body">No email, no password to remember — a recovery key gets you signed in on any device.</div>
+      </div>
+    </div>
+    <div class="landing-step">
+      <div class="landing-step-num">2</div>
+      <div>
+        <div class="landing-step-title">Follow the signals</div>
+        <div class="landing-step-body">See live BUY/SELL/HOLD calls with the reasoning behind each one — practice with simulated funds any time.</div>
+      </div>
+    </div>
+    <div class="landing-step">
+      <div class="landing-step-num">3</div>
+      <div>
+        <div class="landing-step-title">Go live when you're ready</div>
+        <div class="landing-step-body">Connect your own Bybit account to trade with real funds — entirely on your own terms.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="landing-section landing-trust">
+    <h2 style="font-size:13px; color:var(--ink-dim); margin-bottom:12px; text-transform:uppercase; letter-spacing:.5px;">How your funds stay yours</h2>
+    <div class="trust-row">
+      <span class="trust-icon">🔒</span>
+      <span>Your funds always stay in your own Bybit account — we never hold your money.</span>
+    </div>
+    <div class="trust-row">
+      <span class="trust-icon">🔑</span>
+      <span>Your API key is used only on your own device and is never sent to or stored on our servers.</span>
+    </div>
+    <div class="trust-row">
+      <span class="trust-icon">📊</span>
+      <span>No guaranteed returns, no promised win rate — just transparent signals and the tools to act on them.</span>
+    </div>
+  </div>
+
+  <div class="landing-section" id="landing-install-section" style="display:none;">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px;">Install the app</div>
+      <p style="font-size:12px; color:var(--ink-dim); margin-bottom:12px;">Add it to your home screen for a faster, full-screen experience.</p>
+      <button class="trade-btn" id="landing-install-btn">Install now</button>
+    </div>
+  </div>
+
+  <div id="ios-install-overlay" class="modal-overlay">
+    <div class="modal-box">
+      <h3>Install on iPhone/iPad</h3>
+      <p>Tap the <b>Share</b> button in Safari's toolbar, then choose <b>Add to Home Screen</b>.</p>
+      <div class="modal-actions"><button class="confirm-ok" id="ios-install-close-btn" style="width:100%;">Got it</button></div>
+    </div>
+  </div>
+</div>
+
 <!-- ================= GATE ================= -->
-<div class="gate" id="gate">
+<div class="gate" id="gate" style="display:none;">
   <div class="gate-logo">CX</div>
   <h1 id="gate-title">Welcome to Chinux-Trade</h1>
   <p id="gate-sub">Create your trading account to follow live signals, practice trade, and track profit — synced across every device you sign in on.</p>
@@ -152,41 +265,43 @@
   <main>
     <!-- Dashboard -->
     <div class="tab active" id="tab-dashboard">
-      <div id="live-mode-banner" style="display:none; background:rgba(229,97,91,.12); border:1px solid var(--down); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--down); font-weight:700; text-align:center;">
+      <div id="live-mode-banner" class="span-2" style="display:none; background:rgba(229,97,91,.12); border:1px solid var(--down); border-radius:10px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--down); font-weight:700; text-align:center;">
         ⚠️ LIVE MODE — real funds
       </div>
-      <div class="card glow" id="live-balance-card" style="display:none;">
-        <h2>Bybit balance (live)</h2>
-        <div class="stat-grid">
-          <div class="stat"><div class="label">Available USDT</div><div class="value" id="live-balance">$0.00</div></div>
-          <div class="stat"><div class="label">Mode</div><div class="value" id="live-mode-label" style="color:var(--down);">Live</div></div>
+      <div class="dashboard-grid">
+        <div class="card glow span-2" id="live-balance-card" style="display:none;">
+          <h2>Bybit balance (live)</h2>
+          <div class="stat-grid">
+            <div class="stat"><div class="label">Available USDT</div><div class="value" id="live-balance">$0.00</div></div>
+            <div class="stat"><div class="label">Mode</div><div class="value" id="live-mode-label" style="color:var(--down);">Live</div></div>
+          </div>
         </div>
-      </div>
-      <div class="card glow">
-        <h2>Practice balance</h2>
-        <div class="stat-grid">
-          <div class="stat"><div class="label">Balance</div><div class="value" id="stat-balance">$0.00</div></div>
-          <div class="stat"><div class="label">Total P&L</div><div class="value" id="stat-pnl">$0.00</div></div>
+        <div class="card glow">
+          <h2>Practice balance</h2>
+          <div class="stat-grid">
+            <div class="stat"><div class="label">Balance</div><div class="value" id="stat-balance">$0.00</div></div>
+            <div class="stat"><div class="label">Total P&L</div><div class="value" id="stat-pnl">$0.00</div></div>
+          </div>
         </div>
-      </div>
-      <div class="card">
-        <h2>Price chart</h2>
-        <div style="display:flex; gap:6px; margin-bottom:10px;" id="chart-symbol-tabs">
-          <button class="chip active" data-symbol="BTCUSDT">BTC</button>
-          <button class="chip" data-symbol="ETHUSDT">ETH</button>
-          <button class="chip" data-symbol="SOLUSDT">SOL</button>
+        <div class="card">
+          <h2>Trading activity</h2>
+          <canvas id="activity-chart" width="600" height="160" style="width:100%; height:160px;"></canvas>
+          <div class="empty" id="activity-chart-empty" style="display:none;">No trades yet — activity will appear here.</div>
         </div>
-        <div id="candle-chart" style="width:100%; height:220px;"></div>
-        <div class="empty" id="candle-chart-empty" style="display:none;">Chart unavailable — check your connection.</div>
-      </div>
-      <div class="card">
-        <h2>Trading activity</h2>
-        <canvas id="activity-chart" width="600" height="160" style="width:100%; height:160px;"></canvas>
-        <div class="empty" id="activity-chart-empty" style="display:none;">No trades yet — activity will appear here.</div>
-      </div>
-      <div class="card">
-        <h2>Live signals</h2>
-        <div id="signal-list"><div class="empty">Loading signals…</div></div>
+        <div class="card span-2">
+          <h2>Price chart</h2>
+          <div style="display:flex; gap:6px; margin-bottom:10px;" id="chart-symbol-tabs">
+            <button class="chip active" data-symbol="BTCUSDT">BTC</button>
+            <button class="chip" data-symbol="ETHUSDT">ETH</button>
+            <button class="chip" data-symbol="SOLUSDT">SOL</button>
+          </div>
+          <div id="candle-chart" style="width:100%; height:220px;"></div>
+          <div class="empty" id="candle-chart-empty" style="display:none;">Chart unavailable — check your connection.</div>
+        </div>
+        <div class="card span-2">
+          <h2>Live signals</h2>
+          <div id="signal-list"><div class="empty">Loading signals…</div></div>
+        </div>
       </div>
     </div>
 
@@ -485,11 +600,73 @@ async function initGate() {
   const meta = await idbGet('meta', 'account');
   if (meta && meta.clientId && meta.token) {
     clientId = meta.clientId; clientToken = meta.token; displayName = meta.displayName;
+    document.getElementById('landing').style.display = 'none';
     enterApp();
     return;
   }
+  const seenLanding = await idbGet('meta', 'seenLanding');
+  if (seenLanding && seenLanding.value) {
+    document.getElementById('landing').style.display = 'none';
+    document.getElementById('gate').style.display = 'flex';
+  } else {
+    document.getElementById('landing').style.display = 'block';
+    setupInstallPrompt();
+  }
+}
+
+async function proceedFromLanding() {
+  await idbPut('meta', { key: 'seenLanding', value: true });
+  document.getElementById('landing').style.display = 'none';
   document.getElementById('gate').style.display = 'flex';
 }
+document.getElementById('landing-get-started-btn').addEventListener('click', proceedFromLanding);
+document.getElementById('landing-existing-btn').addEventListener('click', async () => {
+  await proceedFromLanding();
+  document.getElementById('restore-link').click();
+});
+
+/* =====================================================================
+   PWA INSTALL — Chromium browsers fire beforeinstallprompt and support
+   a real programmatic install; iOS Safari never fires that event and
+   has no programmatic install at all, so it gets manual Share-sheet
+   instructions instead. Both paths are hidden entirely if the app is
+   already running installed (standalone mode).
+===================================================================== */
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const section = document.getElementById('landing-install-section');
+  if (section) section.style.display = 'block';
+});
+
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+function setupInstallPrompt() {
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (isStandalone) return;
+  if (isIOSDevice()) {
+    document.getElementById('landing-install-section').style.display = 'block';
+  }
+  // Chromium path is handled by the beforeinstallprompt listener above,
+  // which reveals the same section whenever the browser fires it.
+}
+document.getElementById('landing-install-btn').addEventListener('click', async () => {
+  if (isIOSDevice()) {
+    document.getElementById('ios-install-overlay').classList.add('show');
+    return;
+  }
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    document.getElementById('landing-install-section').style.display = 'none';
+  }
+});
+document.getElementById('ios-install-close-btn').addEventListener('click', () => {
+  document.getElementById('ios-install-overlay').classList.remove('show');
+});
 
 document.getElementById('register-btn').addEventListener('click', async () => {
   const name = document.getElementById('display-name-input').value.trim();
@@ -681,6 +858,12 @@ async function initCandleChart() {
   return true;
 }
 
+let activityResizeDebounce;
+window.addEventListener('resize', () => {
+  clearTimeout(activityResizeDebounce);
+  activityResizeDebounce = setTimeout(() => renderActivityChart(), 200);
+});
+
 async function loadCandleData(symbol, attempt = 1) {
   const MAX_ATTEMPTS = 3;
   try {
@@ -729,8 +912,19 @@ document.querySelectorAll('#chart-symbol-tabs .chip').forEach(btn => {
 ===================================================================== */
 async function renderActivityChart() {
   const canvas = document.getElementById('activity-chart');
+  // Match the canvas's internal drawing resolution to its actual
+  // on-screen size (accounting for device pixel ratio) so it stays
+  // crisp whether it's rendering into a narrow phone column or a wide
+  // desktop card — a fixed 600px buffer would look soft stretched
+  // across a much wider desktop layout.
+  const dpr = window.devicePixelRatio || 1;
+  const displayWidth = canvas.clientWidth || 600;
+  const displayHeight = canvas.clientHeight || 160;
+  canvas.width = displayWidth * dpr;
+  canvas.height = displayHeight * dpr;
   const ctx = canvas.getContext('2d');
-  const w = canvas.width, h = canvas.height;
+  ctx.scale(dpr, dpr);
+  const w = displayWidth, h = displayHeight;
   ctx.clearRect(0, 0, w, h);
 
   const trades = await idbAll('trades');
