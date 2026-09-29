@@ -35,6 +35,7 @@
     font-family:'Space Grotesk', sans-serif;
     min-height:100vh;
     -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
   .mono{font-family:'JetBrains Mono', monospace;}
 
@@ -242,6 +243,20 @@
 
   .bio-btn, .btn, .net-pill, input[type=range]{transition:transform .15s ease, opacity .15s ease, background .15s ease;}
   #app{animation:fadeUp .4s ease both;}
+
+  /* ---- Mobile fixes: header/badges/trade-row were sized for desktop
+     and overflowed narrow screens (badges and the Buy button got cut
+     off past the viewport edge). Tighten spacing and let the
+     practice-trade row stack instead of forcing 4 items into one row. ---- */
+  @media (max-width:480px){
+    header{padding:14px 14px 0; flex-wrap:wrap; gap:8px;}
+    .brand{font-size:13px; gap:6px;}
+    .badge-mode{font-size:9px; padding:2px 6px; margin-left:6px;}
+    .net-pill{font-size:11px; padding:4px 8px;}
+    main{padding:14px 12px 80px;}
+    .paper-form{flex-direction:column; align-items:stretch;}
+    .paper-form select, .paper-form input, .paper-form button{width:100%;}
+  }
 </style>
 </head>
 <body>
@@ -270,6 +285,7 @@
       <button class="tab-btn active" data-tab="dashboard"><span class="tab-icon">◈</span>Dashboard</button>
       <button class="tab-btn" data-tab="history"><span class="tab-icon">☰</span>History</button>
       <button class="tab-btn" data-tab="commissions"><span class="tab-icon">%</span>Commissions</button>
+      <button class="tab-btn" data-tab="feedback"><span class="tab-icon">💬</span>Feedback</button>
       <button class="tab-btn" data-tab="admin"><span class="tab-icon">⚙</span>Admin</button>
     </div>
 
@@ -347,6 +363,15 @@
           <div class="card" style="grid-column:1/-1">
             <h3>Commission Entries <span style="color:var(--ink-dim); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">— from connected client apps</span></h3>
             <div id="commList" style="margin-top:6px;"><p class="stat-label">No client activity yet — this populates once a client app is connected and reports profit.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-panel" id="tab-feedback">
+        <div class="grid">
+          <div class="card" style="grid-column:1/-1">
+            <h3>Client Feedback <span style="color:var(--ink-dim); font-weight:400; text-transform:none; letter-spacing:0; font-size:11px;">— from the client app's Feedback tab</span></h3>
+            <div id="feedbackList" style="margin-top:6px;"><p class="stat-label">No feedback yet.</p></div>
           </div>
         </div>
       </div>
@@ -471,6 +496,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'history') loadHistory();
     if (btn.dataset.tab === 'commissions') loadCommissions();
+    if (btn.dataset.tab === 'feedback') loadFeedbackAdmin();
     if (btn.dataset.tab === 'admin') loadAutotradeStatus();
   };
 });
@@ -479,8 +505,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 async function loadHistory(){
   const el = document.getElementById('historyList');
   try {
-    const res = await fetch(`${BACKEND_URL}/api/trades`);
+    const res = await fetch(`${BACKEND_URL}/api/trades`, { headers: { 'x-admin-token': adminToken || '' } });
     const trades = await res.json();
+    if (!res.ok) { el.innerHTML = '<p class="stat-label">Enter your admin token in Admin tab to view history.</p>'; return; }
     if (!trades.length) { el.innerHTML = '<p class="stat-label">No trades yet.</p>'; return; }
     el.innerHTML = trades.map(t => `
       <div class="log-row" style="font-size:13px; display:flex; justify-content:space-between;">
@@ -495,17 +522,61 @@ async function logTrade(symbol, side, amountUsd, price, mode, pnl){
   try {
     await fetch(`${BACKEND_URL}/api/trades`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken || '' },
       body: JSON.stringify({ symbol, side, amountUsd, price, mode, pnl })
     });
   } catch (e) { /* non-fatal — history is a record, not critical path */ }
 }
 
+/* ---------------- Feedback (from client app users) ---------------- */
+async function loadFeedbackAdmin(){
+  const el = document.getElementById('feedbackList');
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/feedback`, { headers: { 'x-admin-token': adminToken || '' } });
+    const items = await res.json();
+    if (!res.ok) { el.innerHTML = '<p class="stat-label">Enter your admin token in the Admin tab to view feedback.</p>'; return; }
+    if (!items.length) { el.innerHTML = '<p class="stat-label">No feedback yet.</p>'; return; }
+    el.innerHTML = items.map(f => `
+      <div class="log-row" style="flex-direction:column; align-items:stretch; gap:8px; padding:14px 0;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--ink-dim);">
+          <span>${f.displayName} · ${new Date(f.createdAt).toLocaleString()}</span>
+          <span class="badge-mode" style="color:${f.status === 'replied' ? 'var(--up)' : 'var(--gold)'}; border-color:${f.status === 'replied' ? 'var(--up)' : 'var(--gold-dim)'};">${f.status}</span>
+        </div>
+        <div style="font-size:14px;">${f.message}</div>
+        ${f.reply ? `
+          <div style="background:var(--panel-2); border-radius:8px; padding:10px; font-size:13px;">
+            <b style="color:var(--gold);">Your reply:</b> ${f.reply.text}
+          </div>` : `
+          <div style="display:flex; gap:8px;">
+            <input type="text" placeholder="Write a reply…" id="reply-input-${f.id}" style="flex:1;">
+            <button class="btn buy" onclick="sendFeedbackReply('${f.id}')">Reply</button>
+          </div>`}
+      </div>`).join('');
+  } catch (e) {
+    el.innerHTML = '<p class="stat-label">Could not load feedback — is the backend reachable?</p>';
+  }
+}
+
+async function sendFeedbackReply(id){
+  const input = document.getElementById(`reply-input-${id}`);
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/feedback/${id}/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken || '' },
+      body: JSON.stringify({ text })
+    });
+    if (res.ok) loadFeedbackAdmin();
+  } catch (e) { /* leave the input as-is so the user can retry */ }
+}
+
 /* ---------------- Commissions ---------------- */
 async function loadCommissions(){
   try {
-    const res = await fetch(`${BACKEND_URL}/api/commissions`);
+    const res = await fetch(`${BACKEND_URL}/api/commissions`, { headers: { 'x-admin-token': adminToken || '' } });
     const data = await res.json();
+    if (!res.ok) return;
     document.getElementById('commPending').textContent = '$' + (data.pendingTotal || 0).toLocaleString(undefined,{minimumFractionDigits:2});
     document.getElementById('commReinvested').textContent = '$' + (data.reinvestedTotal || 0).toLocaleString(undefined,{minimumFractionDigits:2});
     const list = document.getElementById('commList');
@@ -519,8 +590,9 @@ document.getElementById('reinvestBtn').onclick = async () => {
   const status = document.getElementById('reinvestStatus');
   status.textContent = 'Reinvesting…';
   try {
-    const res = await fetch(`${BACKEND_URL}/api/commissions/reinvest`, { method: 'POST' });
+    const res = await fetch(`${BACKEND_URL}/api/commissions/reinvest`, { method: 'POST', headers: { 'x-admin-token': adminToken || '' } });
     const data = await res.json();
+    if (!res.ok) { status.textContent = 'Admin token required — set it in the Admin tab.'; return; }
     status.textContent = data.reinvestedNow > 0
       ? `Reinvested $${data.reinvestedNow.toFixed(2)} into trading capital.`
       : 'Nothing pending to reinvest.';
@@ -533,8 +605,9 @@ document.getElementById('reinvestBtn').onclick = async () => {
 /* ---------------- Autotrade panel ---------------- */
 async function loadAutotradeStatus(){
   try {
-    const res = await fetch(`${BACKEND_URL}/api/autotrade/status`);
+    const res = await fetch(`${BACKEND_URL}/api/autotrade/status`, { headers: { 'x-admin-token': adminToken || '' } });
     const data = await res.json();
+    if (!res.ok) { document.getElementById('autoStatus').textContent = 'Enter your admin token to view autotrade status.'; return; }
     document.getElementById('autoTradeToggle').checked = data.settings.enabled;
     document.getElementById('autoMinSlider').value = data.settings.minTrade;
     document.getElementById('autoMinVal').textContent = data.settings.minTrade;
@@ -606,8 +679,9 @@ document.getElementById('denyExtBtn').onclick = async () => {
 /* ---------------- Admin settings persistence ---------------- */
 async function loadSettings(){
   try {
-    const res = await fetch(`${BACKEND_URL}/api/settings`);
+    const res = await fetch(`${BACKEND_URL}/api/settings`, { headers: { 'x-admin-token': adminToken || '' } });
     const data = await res.json();
+    if (!res.ok) return; // e.g. no admin token entered yet — keep whatever is currently shown
     document.getElementById('commSlider').value = data.commissionPct;
     document.getElementById('commVal').textContent = data.commissionPct + '%';
     document.getElementById('liqSlider').value = data.liquidationPct;
@@ -617,17 +691,22 @@ async function loadSettings(){
 
 document.getElementById('saveSettingsBtn').onclick = async () => {
   const status = document.getElementById('saveStatus');
+  if (!adminToken) {
+    adminToken = prompt('Enter your backend admin token (kept only in this tab, never saved):');
+    if (!adminToken) { status.textContent = 'Admin token required to save.'; return; }
+  }
   status.textContent = 'Saving…';
   try {
     const res = await fetch(`${BACKEND_URL}/api/settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-admin-token': adminToken },
       body: JSON.stringify({
         commissionPct: document.getElementById('commSlider').value,
         liquidationPct: document.getElementById('liqSlider').value
       })
     });
     if (res.ok) { status.textContent = 'Saved ✓'; setTimeout(() => status.textContent = '', 2000); }
+    else if (res.status === 401) { status.textContent = 'Admin token incorrect — try again.'; adminToken = null; }
     else status.textContent = 'Save failed — try again.';
   } catch (e) {
     status.textContent = 'Could not reach backend.';
